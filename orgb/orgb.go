@@ -97,7 +97,6 @@ func (c *ORGBConn) UpdateLEDS(devId int, colors []RGBColor) error {
 	}
 
 	buf := colorsBuf.Bytes()
-	fmt.Println(buf)
 	return c.sendMessage(NET_PACKET_ID_RGBCONTROLLER_UPDATELEDS, devId, &buf)
 }
 

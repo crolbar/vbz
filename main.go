@@ -2,45 +2,86 @@ package main
 
 import (
 	"fmt"
-	"log"
+	tea "github.com/charmbracelet/bubbletea"
 	"vbz/orgb"
 )
 
-func main() {
-	c, err := orgb.Connect("localhost", 6742)
+type VBZ struct {
+	conn         *orgb.ORGBConn
+	countrollers []orgb.Controller
+}
+
+func initVBZ() (VBZ, error) {
+	conn, err := orgb.Connect("localhost", 6742)
 	if err != nil {
-		log.Fatal(err)
+		return VBZ{}, err
 	}
-	defer c.Close()
 
-	count, err := c.GetControllerCount()
+	count, err := conn.GetControllerCount()
 	if err != nil {
-		log.Fatal(err)
+		return VBZ{}, err
 	}
 
-	fmt.Println(count)
-
+	controllers := make([]orgb.Controller, count)
 	for i := 0; i < count; i++ {
-		controller, _ := c.GetController(i)
-		fmt.Println(controller)
-
-		colors := make([]orgb.RGBColor, len(controller.Colors))
-
-		for i := 0; i < len(colors); i++ {
-			// colors[i] = orgb.Color{uint8(rand.Uint32() % 255), uint8(rand.Uint32() % 255), uint8(rand.Uint32() % 255)}
-			colors[i] = orgb.RGBColor{
-				// Red:   10,
-				// Green: 20,
-				// Blue:  10,
-				Red:   0,
-				Green: 0,
-				Blue:  0,
-			}
+		controller, err := conn.GetController(i)
+		if err != nil {
+			return VBZ{}, err
 		}
+		controllers[i] = controller
+	}
 
-		fmt.Printf("%s\n", controller.Name)
-		if err := c.UpdateLEDS(i, colors); err != nil {
-			log.Fatal(err)
+	return VBZ{
+		conn:         conn,
+		countrollers: controllers,
+	}, nil
+}
+
+func main() {
+	vbz, err := initVBZ()
+	if err != nil {
+		fmt.Println("Error while connecting to openrgb: ", err)
+		return
+	}
+
+	defer vbz.conn.Close()
+
+	b, err := vbz.parseArgs()
+	if err != nil {
+		fmt.Println("Error while parsing args: ", err)
+		return
+	}
+	if b {
+		return
+	}
+
+	if _, err := tea.NewProgram(vbz).Run(); err != nil {
+		fmt.Println(err)
+		return
+	}
+}
+
+func (v VBZ) Init() tea.Cmd {
+	return nil
+}
+
+func (v VBZ) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "r":
+			v.setAllLEDsToColor(255, 0, 0)
+		case "g":
+			v.setAllLEDsToColor(0, 255, 0)
+		case "b":
+			v.setAllLEDsToColor(0, 0, 255)
+		case "q":
+			return v, tea.Quit
 		}
 	}
+	return v, nil
+}
+
+func (v VBZ) View() string {
+	return "hi"
 }
