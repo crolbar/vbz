@@ -6,6 +6,7 @@ import (
 	"time"
 	"vbz/audio"
 	"vbz/orgb"
+	"vbz/settings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/gen2brain/malgo"
@@ -15,45 +16,47 @@ type VBZ struct {
 	conn         *orgb.ORGBConn
 	countrollers []orgb.Controller
 	audio        *audio.Audio
+	settings     settings.Settings
 }
 
 func HSVtoRGB(h, s, v float64) (float64, float64, float64) {
-    i := int(h * 6)
-    f := h*6 - float64(i)
-    p := v * (1 - s)
-    q := v * (1 - f*s)
-    t := v * (1 - (1-f)*s)
+	i := int(h * 6)
+	f := h*6 - float64(i)
+	p := v * (1 - s)
+	q := v * (1 - f*s)
+	t := v * (1 - (1-f)*s)
 
-    i = i % 6
+	i = i % 6
 
-    switch i {
-    case 0:
-        return v, t, p
-    case 1:
-        return q, v, p
-    case 2:
-        return p, v, t
-    case 3:
-        return p, q, v
-    case 4:
-        return t, p, v
-    case 5:
-        return v, p, q
-    }
-    return 0, 0, 0
+	switch i {
+	case 0:
+		return v, t, p
+	case 1:
+		return q, v, p
+	case 2:
+		return p, v, t
+	case 3:
+		return p, q, v
+	case 4:
+		return t, p, v
+	case 5:
+		return v, p, q
+	}
+	return 0, 0, 0
 }
 
 var t float64
-func (v *VBZ) setVibe(peak float32) {
-    t += 0.01
 
-    hue := math.Mod(t, 1.0)
+func (v *VBZ) setVibe(peak float32) {
+	t += 0.01
+
+	hue := math.Mod(t, 1.0)
 
 	// smooth out peak
-	scaledPeak := math.Log(1 + 9*float64(peak)) / math.Log(10)
-    r, g, b := HSVtoRGB(hue, 1.0, scaledPeak)
+	scaledPeak := math.Log(1+9*float64(peak)) / math.Log(10)
+	r, g, b := HSVtoRGB(hue, 1.0, scaledPeak)
 
-    v.setAllLEDsToColor(uint8(r*255), uint8(g*255), uint8(b*255))
+	v.setAllLEDsToColor(uint8(r*255), uint8(g*255), uint8(b*255))
 }
 
 func (v *VBZ) onData() malgo.DataProc {
@@ -67,6 +70,7 @@ func (v *VBZ) onData() malgo.DataProc {
 			}
 		}
 
+		// fmt.Println(samples)
 		fmt.Println(peak)
 
 		v.setVibe(peak)
@@ -75,35 +79,64 @@ func (v *VBZ) onData() malgo.DataProc {
 	}
 }
 
-func initVBZ() (VBZ, error) {
-	vbz := VBZ{}
-
-	conn, err := orgb.Connect("localhost", 6742)
+func (v *VBZ) initORGBConn() error {
+	conn, err := orgb.Connect(v.settings.Host, v.settings.Port)
 	if err != nil {
-		return VBZ{}, err
+		return err
 	}
-	vbz.conn = conn
+	v.conn = conn
 
 	count, err := conn.GetControllerCount()
 	if err != nil {
-		return VBZ{}, err
+		return err
 	}
 
-	vbz.countrollers = make([]orgb.Controller, count)
+	v.countrollers = make([]orgb.Controller, count)
 	for i := 0; i < count; i++ {
 		controller, err := conn.GetController(i)
 		if err != nil {
-			return VBZ{}, err
+			return err
 		}
-		vbz.countrollers[i] = controller
+		v.countrollers[i] = controller
 	}
 
-	audio, err := audio.InitDevice(1, vbz.onData())
+	return nil
+}
+
+func (v *VBZ) initAudio() error {
+	audio, err := audio.InitDevice(v.settings.DeviceIdx, v.onData())
+	if err != nil {
+		return err
+	}
+
+	v.audio = &audio
+
+	return nil
+}
+
+func initVBZ() (VBZ, error) {
+	vbz := VBZ{}
+
+	cfgPath, err := getConfigPathFromArgs()
 	if err != nil {
 		return VBZ{}, err
 	}
 
-	vbz.audio = &audio
+	if cfgPath == "" {
+		vbz.settings = settings.GetSettingsDefaultPath()
+	} else {
+		vbz.settings = settings.GetSettings(cfgPath)
+	}
+
+	err = vbz.initORGBConn()
+	if err != nil {
+		return VBZ{}, err
+	}
+
+	err = vbz.initAudio()
+	if err != nil {
+		return VBZ{}, err
+	}
 
 	return vbz, nil
 }

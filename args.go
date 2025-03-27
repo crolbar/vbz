@@ -7,6 +7,20 @@ import (
 	"strconv"
 )
 
+func getConfigPathFromArgs() (string, error) {
+	for i, arg := range os.Args {
+		switch arg {
+		case "-c", "--config":
+			if i+1 >= len(os.Args) {
+				return "", errors.New("params to --config/-c not enough, view --help")
+			}
+
+			return os.Args[i+1], nil
+		}
+	}
+	return "", nil
+}
+
 func (v *VBZ) parseArgs() (bool, error) {
 	for i, arg := range os.Args {
 		switch arg {
