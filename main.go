@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 	"time"
-	"vbz/audio"
+	"vbz/audioCapture"
 	"vbz/orgb"
 	"vbz/settings"
 
@@ -15,7 +15,7 @@ import (
 type VBZ struct {
 	conn         *orgb.ORGBConn
 	countrollers []orgb.Controller
-	audio        *audio.Audio
+	audio        *audioCapture.AudioCapture
 	settings     settings.Settings
 }
 
@@ -104,7 +104,7 @@ func (v *VBZ) initORGBConn() error {
 }
 
 func (v *VBZ) initAudio() error {
-	audio, err := audio.InitDevice(v.settings.DeviceIdx, v.onData())
+	audio, err := audioCapture.InitDevice(v.settings.DeviceIdx, v.onData())
 	if err != nil {
 		return err
 	}

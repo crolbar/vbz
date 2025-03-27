@@ -1,15 +1,17 @@
-package audio
+package audioCapture
 
 import (
+	"fmt"
 	"log"
+
 	"github.com/gen2brain/malgo"
 )
 
-type Audio struct {
+type AudioCapture struct {
 	Dev *malgo.Device
 }
 
-func InitDevice(devIdx int, cb malgo.DataProc) (Audio, error) {
+func getDevices() (*malgo.AllocatedContext, []malgo.DeviceInfo, error) {
 	ctx, err := malgo.InitContext(nil, malgo.ContextConfig{}, func(message string) {
 		// fmt.Printf("LOG> %v\n", message)
 	})
@@ -17,25 +19,22 @@ func InitDevice(devIdx int, cb malgo.DataProc) (Audio, error) {
 	if err != nil {
 		log.Fatalf("Failed to initialize context: %v", err)
 	}
+
+	devices, err := ctx.Devices(malgo.Capture)
+	return ctx, devices, err
+}
+
+func InitDevice(devIdx int, cb malgo.DataProc) (AudioCapture, error) {
+	ctx, devices, err := getDevices()
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer func() {
 		_ = ctx.Uninit()
 		ctx.Free()
 	}()
 
-	devices, err := ctx.Devices(malgo.Capture)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// fmt.Println("========== Devices ==============")
-	// for _, d := range devices {
-	// 	fmt.Println(d.Name())
-	// }
-	// fmt.Println("==========================")
-
 	selDev := devices[devIdx]
-
-	// fmt.Println("selected id: ", selDev.String())
 
 	deviceConfig := malgo.DefaultDeviceConfig(malgo.Capture)
 	deviceConfig.Capture.DeviceID = selDev.ID.Pointer()
@@ -49,11 +48,24 @@ func InitDevice(devIdx int, cb malgo.DataProc) (Audio, error) {
 		log.Fatalf("Failed to init device: %v", err)
 	}
 
-	return Audio{
+	return AudioCapture{
 		Dev: device,
 	}, nil
 }
 
-func (a *Audio) StartDev() error {
+func (a *AudioCapture) StartDev() error {
 	return a.Dev.Start()
+}
+
+func PrintDevices() error {
+	_, devices, err := getDevices()
+	if err != nil {
+		return err
+	}
+
+	for i, d := range devices {
+		fmt.Println(i, d.Name())
+	}
+
+	return nil
 }

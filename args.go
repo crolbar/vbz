@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"vbz/audioCapture"
 )
 
 func getConfigPathFromArgs() (string, error) {
@@ -36,6 +37,10 @@ func (v *VBZ) parseArgs() (bool, error) {
 			return true, nil
 		case "--blue":
 			v.setAllLEDsToColor(0, 0, 255)
+			return true, nil
+
+        case "--list-devices", "-l":
+			audioCapture.PrintDevices()
 			return true, nil
 
 		case "--set-color":
