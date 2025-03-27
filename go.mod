@@ -2,7 +2,10 @@ module vbz
 
 go 1.23.6
 
-require github.com/charmbracelet/bubbletea v1.3.4
+require (
+	github.com/charmbracelet/bubbletea v1.3.4
+	github.com/gen2brain/malgo v0.11.23
+)
 
 require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
