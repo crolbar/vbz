@@ -24,7 +24,7 @@ func getDevices() (*malgo.AllocatedContext, []malgo.DeviceInfo, error) {
 	return ctx, devices, err
 }
 
-func InitDevice(devIdx int, cb malgo.DataProc) (AudioCapture, error) {
+func InitDevice(devIdx int, bufferSize int, sampleRate int, cb malgo.DataProc) (AudioCapture, error) {
 	ctx, devices, err := getDevices()
 	if err != nil {
 		log.Fatal(err)
@@ -38,8 +38,11 @@ func InitDevice(devIdx int, cb malgo.DataProc) (AudioCapture, error) {
 
 	deviceConfig := malgo.DefaultDeviceConfig(malgo.Capture)
 	deviceConfig.Capture.DeviceID = selDev.ID.Pointer()
-	deviceConfig.Capture.Format = malgo.FormatF32
-	deviceConfig.Capture.Channels = 2
+	deviceConfig.Capture.Format = malgo.FormatU8
+	deviceConfig.Capture.Channels = 1
+	deviceConfig.PeriodSizeInFrames = uint32(bufferSize)
+	deviceConfig.SampleRate = uint32(sampleRate)
+
 	deviceConfig.PUserData = nil
 
 	captureCallbacks := malgo.DeviceCallbacks{Data: cb}
