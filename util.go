@@ -5,18 +5,18 @@ import (
 	"encoding/binary"
 )
 
-func byteToFloat32(data []byte) ([]float32, error) {
+func byteToU8(data []byte) ([]uint8, error) {
 	buf := bytes.NewReader(data)
 
-	var result []float32
+	var result []uint8
 
 	for {
-		var f float32
-		err := binary.Read(buf, binary.LittleEndian, &f)
+		var u uint8
+		err := binary.Read(buf, binary.LittleEndian, &u)
 		if err != nil {
 			break
 		}
-		result = append(result, f)
+		result = append(result, uint8(u))
 	}
 
 	return result, nil

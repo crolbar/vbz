@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"time"
 	"vbz/audioCapture"
+	"vbz/fft"
 	"vbz/orgb"
 	"vbz/settings"
 
@@ -17,66 +17,25 @@ type VBZ struct {
 	countrollers []orgb.Controller
 	audio        *audioCapture.AudioCapture
 	settings     settings.Settings
+
+	width  int
+	height int
+
+	tickCount    uint
+	fps          int
+	lastTickTime time.Time
+
+	fft *fft.FFT
 }
 
-func HSVtoRGB(h, s, v float64) (float64, float64, float64) {
-	i := int(h * 6)
-	f := h*6 - float64(i)
-	p := v * (1 - s)
-	q := v * (1 - f*s)
-	t := v * (1 - (1-f)*s)
+const SampleRate float64 = 10000
 
-	i = i % 6
+var p *tea.Program
 
-	switch i {
-	case 0:
-		return v, t, p
-	case 1:
-		return q, v, p
-	case 2:
-		return p, v, t
-	case 3:
-		return p, q, v
-	case 4:
-		return t, p, v
-	case 5:
-		return v, p, q
-	}
-	return 0, 0, 0
-}
+type Refresh struct{}
 
-var t float64
-
-func (v *VBZ) setVibe(peak float32) {
-	t += 0.01
-
-	hue := math.Mod(t, 1.0)
-
-	// smooth out peak
-	scaledPeak := math.Log(1+9*float64(peak)) / math.Log(10)
-	r, g, b := HSVtoRGB(hue, 1.0, scaledPeak)
-
-	v.setAllLEDsToColor(uint8(r*255), uint8(g*255), uint8(b*255))
-}
-
-func (v *VBZ) onData() malgo.DataProc {
-	return func(pOutputSample, pInputSamples []byte, frameCount uint32) {
-		samples, _ := byteToFloat32(pInputSamples)
-
-		var peak float32 = 0.0
-		for _, s := range samples {
-			if peak < s {
-				peak = s
-			}
-		}
-
-		// fmt.Println(samples)
-		fmt.Println(peak)
-
-		v.setVibe(peak)
-
-		time.Sleep(5 * time.Millisecond)
-	}
+func (v *VBZ) triggerRefresh() {
+	p.Send(Refresh{})
 }
 
 func (v *VBZ) initORGBConn() error {
@@ -104,7 +63,7 @@ func (v *VBZ) initORGBConn() error {
 }
 
 func (v *VBZ) initAudio() error {
-	audio, err := audioCapture.InitDevice(v.settings.DeviceIdx, v.onData())
+	audio, err := audioCapture.InitDevice(v.settings.DeviceIdx, fft.BUFFER_SIZE, int(SampleRate), v.onData())
 	if err != nil {
 		return err
 	}
@@ -114,12 +73,14 @@ func (v *VBZ) initAudio() error {
 	return nil
 }
 
-func initVBZ() (VBZ, error) {
-	vbz := VBZ{}
+func initVBZ() (*VBZ, error) {
+	vbz := VBZ{
+		tickCount: 0,
+	}
 
 	cfgPath, err := getConfigPathFromArgs()
 	if err != nil {
-		return VBZ{}, err
+		return &VBZ{}, err
 	}
 
 	if cfgPath == "" {
@@ -130,15 +91,17 @@ func initVBZ() (VBZ, error) {
 
 	err = vbz.initORGBConn()
 	if err != nil {
-		return VBZ{}, err
+		return &VBZ{}, err
 	}
 
 	err = vbz.initAudio()
 	if err != nil {
-		return VBZ{}, err
+		return &VBZ{}, err
 	}
 
-	return vbz, nil
+	vbz.fft = fft.InitFFT(8000, fft.DoubleBoxFilter, 2, 0.2, 80)
+
+	return &vbz, nil
 }
 
 func main() {
@@ -147,7 +110,6 @@ func main() {
 		fmt.Println("Error while connecting to openrgb: ", err)
 		return
 	}
-
 	defer vbz.conn.Close()
 
 	b, err := vbz.parseArgs()
@@ -162,11 +124,11 @@ func main() {
 	vbz.audio.StartDev()
 	defer vbz.audio.Dev.Uninit()
 
-	// if _, err := tea.NewProgram(vbz).Run(); err != nil {
-	// 	fmt.Println(err)
-	// 	return
-	// }
-	select {}
+	p = tea.NewProgram(vbz, tea.WithAltScreen())
+	if _, err := p.Run(); err != nil {
+		fmt.Println(err)
+		return
+	}
 }
 
 func (v VBZ) Init() tea.Cmd {
@@ -186,10 +148,32 @@ func (v VBZ) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q":
 			return v, tea.Quit
 		}
+	case tea.WindowSizeMsg:
+		v.width = msg.Width
+		v.height = msg.Height
+	case Refresh:
 	}
+
+	v.tickCount++
+	now := time.Now()
+	frameTime := now.Sub(v.lastTickTime)
+	v.lastTickTime = now
+	v.fps = int(time.Second / frameTime)
+
 	return v, nil
 }
 
-func (v VBZ) View() string {
-	return "hi"
+func (v *VBZ) setBins(samples []uint8) {
+	v.fft.ApplyFFT(samples)
+	v.triggerRefresh()
+}
+
+func (v *VBZ) onData() malgo.DataProc {
+	return func(pOutputSample, pInputSamples []byte, frameCount uint32) {
+		samples, _ := byteToU8(pInputSamples)
+		v.setBins(samples)
+		// v.setVibe()
+
+		time.Sleep(1 * time.Millisecond)
+	}
 }
