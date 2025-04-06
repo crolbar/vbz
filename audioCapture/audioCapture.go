@@ -1,6 +1,7 @@
 package audioCapture
 
 import (
+	"errors"
 	"fmt"
 	"log"
 
@@ -34,6 +35,9 @@ func InitDevice(devIdx int, bufferSize int, sampleRate int, cb malgo.DataProc) (
 		ctx.Free()
 	}()
 
+	if devIdx >= len(devices) {
+		return AudioCapture{}, errors.New("device idx too large")
+	}
 	selDev := devices[devIdx]
 
 	deviceConfig := malgo.DefaultDeviceConfig(malgo.Capture)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"time"
 	"vbz/audioCapture"
@@ -15,11 +16,16 @@ import (
 type VBZ struct {
 	conn         *orgb.ORGBConn
 	countrollers []orgb.Controller
-	audio        *audioCapture.AudioCapture
-	settings     settings.Settings
+
+	audio *audioCapture.AudioCapture
+
+	settings   settings.Settings
+	configPath string
 
 	width  int
 	height int
+
+	shouldNotEnterTui bool
 
 	tickCount    uint
 	fps          int
@@ -35,7 +41,9 @@ var p *tea.Program
 type Refresh struct{}
 
 func (v *VBZ) triggerRefresh() {
-	p.Send(Refresh{})
+	if p != nil {
+		p.Send(Refresh{})
+	}
 }
 
 func (v *VBZ) initORGBConn() error {
@@ -73,53 +81,63 @@ func (v *VBZ) initAudio() error {
 	return nil
 }
 
-func initVBZ() (*VBZ, error) {
+func initVBZ() (VBZ, error) {
+	var err error
+
+	var defaultFFT = fft.DefaultFFT
 	vbz := VBZ{
 		tickCount: 0,
+		fft:       &defaultFFT,
+		settings: settings.Settings{
+			DeviceIdx: -1,
+			Port:      -1,
+			Host:      "-1",
+			FftPtr:    &defaultFFT,
+		},
 	}
 
-	cfgPath, err := getConfigPathFromArgs()
+	err = vbz.parseEarlyArgs()
 	if err != nil {
-		return &VBZ{}, err
+		return VBZ{}, err
+	}
+	if vbz.shouldNotEnterTui {
+		return vbz, nil
 	}
 
-	if cfgPath == "" {
-		vbz.settings = settings.GetSettingsDefaultPath()
-	} else {
-		vbz.settings = settings.GetSettings(cfgPath)
+	err = vbz.settings.InitSettings(vbz.configPath)
+	if err != nil {
+		return VBZ{}, errors.New(fmt.Sprintf("Error seting settings: %s", err.Error()))
 	}
 
 	err = vbz.initORGBConn()
 	if err != nil {
-		return &VBZ{}, err
+		return VBZ{}, errors.New(fmt.Sprintf("Error initializing openrgb connection: %s", err.Error()))
 	}
 
 	err = vbz.initAudio()
 	if err != nil {
-		return &VBZ{}, err
+		return VBZ{}, errors.New(fmt.Sprintf("Error initializing audio capture dev: %s", err.Error()))
 	}
 
-	vbz.fft = fft.InitFFT(8000, fft.DoubleBoxFilter, 2, 0.2, 80)
+	err = vbz.parseLateArgs()
+	if err != nil {
+		return VBZ{}, errors.New(fmt.Sprintf("Error parsing args: %s", err.Error()))
+	}
 
-	return &vbz, nil
+	return vbz, nil
 }
 
 func main() {
 	vbz, err := initVBZ()
 	if err != nil {
-		fmt.Println("Error while connecting to openrgb: ", err)
+		fmt.Println(err)
 		return
 	}
-	defer vbz.conn.Close()
+	if vbz.shouldNotEnterTui {
+		return
+	}
 
-	b, err := vbz.parseArgs()
-	if err != nil {
-		fmt.Println("Error while parsing args: ", err)
-		return
-	}
-	if b {
-		return
-	}
+	defer vbz.conn.Close()
 
 	vbz.audio.StartDev()
 	defer vbz.audio.Dev.Uninit()

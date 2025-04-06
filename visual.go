@@ -91,7 +91,7 @@ func (v VBZ) renderBins() string {
 
 		fb = lbfb.NewFrameBuffer(uint16(w), uint16(h))
 
-		binWidth     = int(float32(w)/float32(fft.BINS_SIZE)) + 2
+		binWidth     = int(float32(w)/float32(fft.BINS_SIZE))
 		binMaxHeight = h
 		// binWidth = 3
 		// binMaxHeight = 30

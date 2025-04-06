@@ -1,12 +1,14 @@
 package settings
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path"
 	"strconv"
 	"strings"
+	"vbz/fft"
 )
 
 // in config file keys are case insensitive
@@ -14,6 +16,7 @@ type Settings struct {
 	Port      int
 	Host      string
 	DeviceIdx int
+	FftPtr    *fft.FFT
 }
 
 var DefaultSettings Settings = Settings{
@@ -22,10 +25,35 @@ var DefaultSettings Settings = Settings{
 	DeviceIdx: 0,
 }
 
-func GetSettingsDefaultPath() Settings {
+func (s *Settings) InitSettings(configPath string) error {
+	var err error
+	if configPath == "" {
+		err = s.getSettingsDefaultPath()
+	} else {
+		err = s.getSettings(configPath)
+	}
+	if err != nil {
+		return err
+	}
+
+	// set uninited values to default
+	if s.DeviceIdx == -1 {
+		s.DeviceIdx = DefaultSettings.DeviceIdx
+	}
+	if s.Port == -1 {
+		s.Port = DefaultSettings.Port
+	}
+	if s.Host == "-1" {
+		s.Host = DefaultSettings.Host
+	}
+
+	return nil
+}
+
+func (s *Settings) getSettingsDefaultPath() error {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
-		return DefaultSettings
+		return err
 	}
 
 	vbzConfigPath := path.Join(configDir, "vbz", "config")
@@ -34,36 +62,33 @@ func GetSettingsDefaultPath() Settings {
 
 	// will asume that the error is "no such file"
 	if err != nil {
-		return DefaultSettings
+		return nil
 	}
 
-	return parseConfigFile(f)
+	return s.parseConfigFile(f)
 }
 
-func GetSettings(path string) Settings {
+func (s *Settings) getSettings(path string) error {
 	f, err := os.Open(path)
-	// will asume that the error is "no such file"
 	if err != nil {
-		panic("error while trying to open specified config file: " + err.Error())
+		return errors.New("error while trying to open specified config file: " + err.Error())
 	}
 
-	return parseConfigFile(f)
+	return s.parseConfigFile(f)
 }
 
-func parseInt(s string, lineNum int) int {
+func parseInt(s string, lineNum int) (int, error) {
 	num, err := strconv.Atoi(s)
 	if err != nil {
-		panic(fmt.Sprintf("error while parsing int at line: %d", lineNum))
+		return 0, errors.New(fmt.Sprintf("error while parsing int at line: %d", lineNum))
 	}
-	return num
+	return num, nil
 }
 
-func parseConfigFile(file *os.File) Settings {
-	s := DefaultSettings
-
+func (s *Settings) parseConfigFile(file *os.File) error {
 	buf, err := io.ReadAll(file)
 	if err != nil {
-		return DefaultSettings
+		return err
 	}
 
 	conts := string(buf)
@@ -73,29 +98,102 @@ func parseConfigFile(file *os.File) Settings {
 	lines := strings.Split(conts, "\n")
 
 	for i, l := range lines {
+		// ignore empty lines
 		if len(l) == 0 {
+			continue
+		}
+		// skip comments
+		if l[0] == '#' {
 			continue
 		}
 		keyVal := strings.Split(l, "=")
 
 		if len(keyVal) != 2 {
-			panic(fmt.Sprintf("config error near line: %d", i+1))
+			return errors.New(fmt.Sprintf("config error near line: %d", i+1))
 		}
 
 		key := strings.ToLower(keyVal[0])
 		val := keyVal[1]
 
 		switch key {
+		case "ampscalar", "amp-scalar":
+			if s.FftPtr.AmpScalar != fft.DefaultFFT.AmpScalar {
+				break
+			}
+
+			num, err := parseInt(val, i+1)
+			if err != nil {
+				return err
+			}
+			s.FftPtr.AmpScalar = num
+		case "filtermode", "filter-mode":
+			if s.FftPtr.FilterMode != fft.DefaultFFT.FilterMode {
+				break
+			}
+
+			switch strings.ToLower(val) {
+			case "block":
+				s.FftPtr.FilterMode = fft.Block
+			case "box", "boxfilter":
+				s.FftPtr.FilterMode = fft.BoxFilter
+			case "dbox", "doublebox", "doubleboxfilter":
+				s.FftPtr.FilterMode = fft.DoubleBoxFilter
+			case "none":
+				s.FftPtr.FilterMode = fft.None
+			default:
+				return errors.New("no such filter specifed in config file: " + val)
+			}
+		case "filterrange", "filter-range":
+			if s.FftPtr.FilterRange != fft.DefaultFFT.FilterRange {
+				break
+			}
+
+			num, err := parseInt(val, i+1)
+			if err != nil {
+				return err
+			}
+			s.FftPtr.FilterRange = num
+		case "decay":
+			if s.FftPtr.Decay != fft.DefaultFFT.Decay {
+				break
+			}
+
+			num, err := parseInt(val, i+1)
+			if err != nil {
+				return err
+			}
+			s.FftPtr.Decay = num
 		case "port":
-			s.Port = parseInt(val, i+1)
+			if s.Port != -1 {
+				break
+			}
+
+			num, err := parseInt(val, i+1)
+			if err != nil {
+				return err
+			}
+			s.Port = num
 		case "host":
+			if s.Host != "-1" {
+				break
+			}
+
 			s.Host = val
 		case "deviceidx":
-			s.DeviceIdx = parseInt(val, i+1)
+			if s.DeviceIdx != -1 {
+				break
+			}
+
+			num, err := parseInt(val, i+1)
+			if err != nil {
+				return err
+			}
+			s.DeviceIdx = num
 		default:
-			panic(fmt.Sprintf("no such key on line: %d", i+1))
+			return errors.New(fmt.Sprintf("no such key on line: %d", i+1))
+
 		}
 	}
 
-	return s
+	return nil
 }

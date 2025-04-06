@@ -16,7 +16,8 @@ const BINS_SIZE = 256 / 4
 type FilterType int
 
 const (
-	Block FilterType = iota + 1
+	None FilterType = iota + 0
+	Block
 	BoxFilter
 	DoubleBoxFilter
 )
@@ -27,25 +28,15 @@ type FFT struct {
 	AmpScalar   int
 	FilterMode  FilterType
 	FilterRange int
-	Alpha       float64
 	Decay       int
 }
 
-func InitFFT(
-	AmpScalar int,
-	FilterMode FilterType,
-	FilterRange int,
-	Alpha float64,
-	Decay int,
-) *FFT {
-	return &FFT{
-		Bins:        make([]float64, BINS_SIZE),
-		AmpScalar:   AmpScalar,
-		FilterRange: FilterRange,
-		FilterMode:  FilterMode,
-		Alpha:       Alpha,
-		Decay:       Decay,
-	}
+var DefaultFFT FFT = FFT{
+	Bins:        make([]float64, BINS_SIZE),
+	AmpScalar:   5000,
+	FilterRange: 2,
+	FilterMode:  DoubleBoxFilter,
+	Decay:       80,
 }
 
 func (f *FFT) applyBlockFilter() {
