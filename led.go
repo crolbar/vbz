@@ -5,30 +5,40 @@ import (
 	"vbz/orgb"
 )
 
-func HSVtoRGB(h, s, v float64) (float64, float64, float64) {
-	i := int(h * 6)
-	f := h*6 - float64(i)
-	p := v * (1 - s)
-	q := v * (1 - f*s)
-	t := v * (1 - (1-f)*s)
+// all h, s and v are values between 0 and 1
+func HSVtoRGB(h, s, v float64) (uint8, uint8, uint8) {
+	var (
+		C = v * s // chroma / range
+		M = v     // max rgb value
+		m = M - C // min rgb value
 
-	i = i % 6
+		hueAngle = math.Floor(h * 360)
+		Hprime   = hueAngle / 60 // split into regions
 
-	switch i {
+		u = Hprime - math.Floor(Hprime) // unbound pos in uprising slope
+
+		t = v * s * u       // bound / in range, pos in uprising slope
+		q = v * s * (1 - u) // pos in descending slope
+	)
+
+	var r, g, b float64
+
+	switch math.Floor(Hprime) {
 	case 0:
-		return v, t, p
+		r, g, b = M, t, m
 	case 1:
-		return q, v, p
+		r, g, b = q, M, m
 	case 2:
-		return p, v, t
+		r, g, b = m, M, t
 	case 3:
-		return p, q, v
+		r, g, b = m, q, M
 	case 4:
-		return t, p, v
+		r, g, b = t, m, M
 	case 5:
-		return v, p, q
+		r, g, b = M, m, q
 	}
-	return 0, 0, 0
+
+	return uint8(r * 255), uint8(g * 255), uint8(b * 255)
 }
 
 var t float64
@@ -44,15 +54,20 @@ func (v *VBZ) setVibe() {
 		}
 	}
 
-	t += 0.01
+	peak = 1
 
+	t += 0.003
 	hue := math.Mod(t, 1.0)
 
-	// smooth out peak
-	scaledPeak := math.Log(1+9*float64(peak)) / math.Log(10)
-	r, g, b := HSVtoRGB(hue, 1.0, scaledPeak)
+	// scaledPeak := math.Log(1+9*float64(peak)) / math.Log(10)
 
-	v.setAllLEDsToColor(uint8(r*255), uint8(g*255), uint8(b*255))
+	r, g, b := HSVtoRGB(hue, 1, peak)
+
+	_ = r
+	_ = g
+	_ = b
+
+	// v.setAllLEDsToColor(r, g, b)
 }
 
 func (v *VBZ) turtOffRGB() {

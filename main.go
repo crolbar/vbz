@@ -28,10 +28,27 @@ type VBZ struct {
 	shouldNotEnterTui bool
 
 	tickCount    uint
-	fps          int
 	lastTickTime time.Time
+	fps          int
+
+	bpm *BPM
+
+	prevFHues []float64
+	prevBHues []float64
+	hueRate   float64
 
 	fft *fft.FFT
+
+	fillBins bool
+
+	debug bool
+}
+
+type BPM struct {
+	bpm            float64
+	lastEnergy     float64
+	lastBeat       time.Time
+	hasBeat        bool
 }
 
 const SampleRate float64 = 10000
@@ -44,6 +61,14 @@ func (v *VBZ) triggerRefresh() {
 	if p != nil {
 		p.Send(Refresh{})
 	}
+}
+func (v *VBZ) triggerLaterRefresh() {
+	go func() {
+		time.Sleep(time.Millisecond * 16)
+		if p != nil {
+			p.Send(Refresh{})
+		}
+	}()
 }
 
 func (v *VBZ) initORGBConn() error {
@@ -71,7 +96,7 @@ func (v *VBZ) initORGBConn() error {
 }
 
 func (v *VBZ) initAudio() error {
-	audio, err := audioCapture.InitDevice(v.settings.DeviceIdx, fft.BUFFER_SIZE, int(SampleRate), v.onData())
+	audio, err := audioCapture.InitDevice(v.settings.DeviceIdx, fft.BUFFER_SIZE, SampleRate, v.onData())
 	if err != nil {
 		return err
 	}
@@ -81,6 +106,15 @@ func (v *VBZ) initAudio() error {
 	return nil
 }
 
+func (v *VBZ) initHues() {
+	v.prevFHues = make([]float64, fft.BINS_SIZE)
+	v.prevBHues = make([]float64, fft.BINS_SIZE)
+	for i := 0; i < fft.BINS_SIZE; i++ {
+		v.prevFHues[i] = float64(i) / fft.BINS_SIZE
+		v.prevBHues[i] = float64(i+3) / fft.BINS_SIZE
+	}
+}
+
 func initVBZ() (VBZ, error) {
 	var err error
 
@@ -88,13 +122,26 @@ func initVBZ() (VBZ, error) {
 	vbz := VBZ{
 		tickCount: 0,
 		fft:       &defaultFFT,
+		bpm: &BPM{
+			bpm:            0,
+			lastEnergy:     0,
+			lastBeat:       time.Time{},
+			hasBeat:        false,
+		},
 		settings: settings.Settings{
 			DeviceIdx: -1,
 			Port:      -1,
 			Host:      "-1",
 			FftPtr:    &defaultFFT,
 		},
+
+		hueRate: 0.003 * 3, // 0.003 is 1 degree a tick
+
+		fillBins: false,
+
+		debug: false,
 	}
+	vbz.initHues()
 
 	err = vbz.parseEarlyArgs()
 	if err != nil {
@@ -163,6 +210,8 @@ func (v VBZ) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			v.setAllLEDsToColor(0, 255, 0)
 		case "b":
 			v.setAllLEDsToColor(0, 0, 255)
+		case "B":
+			v.setAllLEDsToColor(0, 0, 0)
 		case "q":
 			return v, tea.Quit
 		}
@@ -181,17 +230,14 @@ func (v VBZ) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return v, nil
 }
 
-func (v *VBZ) setBins(samples []uint8) {
-	v.fft.ApplyFFT(samples)
-	v.triggerRefresh()
-}
-
 func (v *VBZ) onData() malgo.DataProc {
 	return func(pOutputSample, pInputSamples []byte, frameCount uint32) {
 		samples, _ := byteToU8(pInputSamples)
-		v.setBins(samples)
+		v.fft.ApplyFFT(samples)
+		v.getBPM(samples)
 		// v.setVibe()
 
+		v.triggerRefresh()
 		time.Sleep(1 * time.Millisecond)
 	}
 }

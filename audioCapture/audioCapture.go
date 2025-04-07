@@ -4,12 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"vbz/fft"
 
 	"github.com/gen2brain/malgo"
 )
 
 type AudioCapture struct {
 	Dev *malgo.Device
+
+	FrameDurationMs float64
+	SampleRate    float64
 }
 
 func getDevices() (*malgo.AllocatedContext, []malgo.DeviceInfo, error) {
@@ -25,7 +29,7 @@ func getDevices() (*malgo.AllocatedContext, []malgo.DeviceInfo, error) {
 	return ctx, devices, err
 }
 
-func InitDevice(devIdx int, bufferSize int, sampleRate int, cb malgo.DataProc) (AudioCapture, error) {
+func InitDevice(devIdx int, bufferSize int, sampleRate float64, cb malgo.DataProc) (AudioCapture, error) {
 	ctx, devices, err := getDevices()
 	if err != nil {
 		log.Fatal(err)
@@ -56,7 +60,9 @@ func InitDevice(devIdx int, bufferSize int, sampleRate int, cb malgo.DataProc) (
 	}
 
 	return AudioCapture{
-		Dev: device,
+		Dev:           device,
+		SampleRate:    float64(sampleRate),
+		FrameDurationMs: (float64(fft.BUFFER_SIZE) / sampleRate) * 1000,
 	}, nil
 }
 

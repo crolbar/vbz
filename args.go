@@ -92,6 +92,10 @@ func (v *VBZ) parseEarlyArgs() error {
 			}
 
 			v.configPath = os.Args[i+1]
+		case "--debug":
+			v.debug = true
+		case "--fill-bins":
+			v.fillBins = true
 		case "--help", "-h":
 			fmt.Println("TODO: help menu")
 			v.shouldNotEnterTui = true
