@@ -8,51 +8,40 @@ import "C"
 import (
 	"math"
 	"unsafe"
+	ft "vbz/fft/filter_types"
+	"vbz/settings"
 )
 
 const BUFFER_SIZE = 256
 const BINS_SIZE = 256 / 4
 
-type FilterType int
-
-const (
-	None FilterType = iota + 0
-	Block
-	BoxFilter
-	DoubleBoxFilter
-)
-
 type FFT struct {
 	Bins []float64
-
-	AmpScalar   int
-	FilterMode  FilterType
-	FilterRange int
-	Decay       int
+	s    *settings.Settings
 }
 
 var DefaultFFT FFT = FFT{
-	Bins:        make([]float64, BINS_SIZE),
-	AmpScalar:   5000,
-	FilterRange: 2,
-	FilterMode:  DoubleBoxFilter,
-	Decay:       80,
+	Bins: make([]float64, BINS_SIZE),
+}
+
+func (f *FFT) SetSettingsPtr(s *settings.Settings) {
+	f.s = s
 }
 
 func (f *FFT) applyBlockFilter() {
-	if f.FilterRange == 0 {
+	if f.s.FilterRange == 0 {
 		return
 	}
 
-	for i := 0; i < BINS_SIZE; i += f.FilterRange {
+	for i := 0; i < BINS_SIZE; i += f.s.FilterRange {
 		sum := 0.0
-		for j := i; j < min(i+f.FilterRange, BINS_SIZE); j++ {
+		for j := i; j < min(i+f.s.FilterRange, BINS_SIZE); j++ {
 			sum += f.Bins[i]
 		}
 
-		avg := sum / float64(f.FilterRange)
+		avg := sum / float64(f.s.FilterRange)
 
-		for j := i; j < min(i+f.FilterRange, BINS_SIZE); j++ {
+		for j := i; j < min(i+f.s.FilterRange, BINS_SIZE); j++ {
 			f.Bins[j] = avg
 		}
 	}
@@ -64,8 +53,8 @@ func (f *FFT) applyBoxFilter() {
 	for i := 0; i < BINS_SIZE; i++ {
 		sum := 0.
 
-		start := max(i-f.FilterRange, 0)
-		end := min(i+f.FilterRange, BINS_SIZE-1)
+		start := max(i-f.s.FilterRange, 0)
+		end := min(i+f.s.FilterRange, BINS_SIZE-1)
 		for j := start; j <= end; j++ {
 			sum += f.Bins[j]
 		}
@@ -79,14 +68,14 @@ func (f *FFT) applyBoxFilter() {
 }
 
 func (f *FFT) filterFFT() {
-	switch f.FilterMode {
-	case Block:
+	switch f.s.FilterMode {
+	case ft.Block:
 		f.applyBlockFilter()
 		break
-	case BoxFilter:
+	case ft.BoxFilter:
 		f.applyBoxFilter()
 		break
-	case DoubleBoxFilter:
+	case ft.DoubleBoxFilter:
 		f.applyBoxFilter()
 		f.applyBoxFilter()
 		break
@@ -99,7 +88,7 @@ func (f *FFT) ApplyFFT(samples []uint8) {
 	// shift by half of 256 to center the u8 on 0
 	shift := 256.0 / float64(2)
 	for i := 0; i < BUFFER_SIZE; i++ {
-		fft_tmp[i] = (float64(samples[i]) - shift) * (float64(f.AmpScalar) / shift)
+		fft_tmp[i] = (float64(samples[i]) - shift) * (float64(f.s.AmpScalar) / shift)
 	}
 
 	c_fft_tmp := convToCFloatArray(fft_tmp)
@@ -129,7 +118,7 @@ func (f *FFT) ApplyFFT(samples []uint8) {
 		}
 
 		if mag < prevmag {
-			f.Bins[i/2] = prevmag * (float64(f.Decay) / 100.0)
+			f.Bins[i/2] = prevmag * (float64(f.s.Decay) / 100.0)
 
 			if f.Bins[i/2] < 0.0001 {
 				f.Bins[i/2] = 0

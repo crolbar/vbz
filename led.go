@@ -44,30 +44,8 @@ func HSVtoRGB(h, s, v float64) (uint8, uint8, uint8) {
 var t float64
 
 func (v *VBZ) setVibe() {
-	peak := 0.0
-	// n := len(*v.bins)/3
-	n := 1
-	bins := (v.fft.Bins)
-	for i := 0; i < int(n); i++ {
-		if peak < bins[i] {
-			peak = bins[i]
-		}
-	}
-
-	peak = 1
-
-	t += 0.003
-	hue := math.Mod(t, 1.0)
-
-	// scaledPeak := math.Log(1+9*float64(peak)) / math.Log(10)
-
-	r, g, b := HSVtoRGB(hue, 1, peak)
-
-	_ = r
-	_ = g
-	_ = b
-
-	// v.setAllLEDsToColor(r, g, b)
+	peak := v.getPeakLowAmp()
+	v.setAllLEDsToColor(HSVtoRGB(v.prevFHues[0], 1, peak))
 }
 
 func (v *VBZ) turtOffRGB() {

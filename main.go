@@ -10,6 +10,7 @@ import (
 	"vbz/settings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	lb "github.com/crolbar/lipbalm"
 	"github.com/gen2brain/malgo"
 )
 
@@ -20,7 +21,6 @@ type VBZ struct {
 	audio *audioCapture.AudioCapture
 
 	settings   settings.Settings
-	configPath string
 
 	width  int
 	height int
@@ -35,20 +35,15 @@ type VBZ struct {
 
 	prevFHues []float64
 	prevBHues []float64
-	hueRate   float64
 
 	fft *fft.FFT
-
-	fillBins bool
-
-	debug bool
 }
 
 type BPM struct {
-	bpm            float64
-	lastEnergy     float64
-	lastBeat       time.Time
-	hasBeat        bool
+	bpm        float64
+	lastEnergy float64
+	lastBeat   time.Time
+	hasBeat    bool
 }
 
 const SampleRate float64 = 10000
@@ -123,27 +118,26 @@ func initVBZ() (VBZ, error) {
 		tickCount: 0,
 		fft:       &defaultFFT,
 		bpm: &BPM{
-			bpm:            0,
-			lastEnergy:     0,
-			lastBeat:       time.Time{},
-			hasBeat:        false,
+			bpm:        0,
+			lastEnergy: 0,
+			lastBeat:   time.Time{},
+			hasBeat:    false,
 		},
-		settings: settings.Settings{
-			DeviceIdx: -1,
-			Port:      -1,
-			Host:      "-1",
-			FftPtr:    &defaultFFT,
+		settings: settings.Settings{ // TODO FIX THESE -1s
+			DeviceIdx:   -1,
+			Port:        -1,
+			Host:        "-1",
+			Debug:       false,
+			HueRate:     -1.0,
+			AmpScalar:   -1,
+			FilterRange: -1,
+			FilterMode:  -1,
+			Decay:       -1,
 		},
-
-		hueRate: 0.003 * 3, // 0.003 is 1 degree a tick
-
-		fillBins: false,
-
-		debug: false,
 	}
 	vbz.initHues()
 
-	err = vbz.parseEarlyArgs()
+	err = vbz.settings.ParseEarlyArgs()
 	if err != nil {
 		return VBZ{}, err
 	}
@@ -151,10 +145,11 @@ func initVBZ() (VBZ, error) {
 		return vbz, nil
 	}
 
-	err = vbz.settings.InitSettings(vbz.configPath)
+	err = vbz.settings.InitSettings()
 	if err != nil {
 		return VBZ{}, errors.New(fmt.Sprintf("Error seting settings: %s", err.Error()))
 	}
+	vbz.fft.SetSettingsPtr(&vbz.settings)
 
 	err = vbz.initORGBConn()
 	if err != nil {
@@ -177,7 +172,7 @@ func initVBZ() (VBZ, error) {
 func main() {
 	vbz, err := initVBZ()
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(lb.SetColor(lb.Color(1), err.Error()))
 		return
 	}
 	if vbz.shouldNotEnterTui {

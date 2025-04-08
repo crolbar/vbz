@@ -6,36 +6,77 @@ import (
 	"io"
 	"os"
 	"path"
-	"strconv"
 	"strings"
-	"vbz/fft"
+	ft "vbz/fft/filter_types"
 )
 
 // in config file keys are case insensitive
 type Settings struct {
-	Port      int
-	Host      string
-	DeviceIdx int
-	FftPtr    *fft.FFT
+	Port        int
+	Host        string
+	DeviceIdx   int
+	Debug       bool
+	FillBins    bool
+	HueRate     float64
+	AmpScalar   int
+	FilterMode  ft.FilterType
+	FilterRange int
+	Decay       int
+	Config      string // config path
 }
 
 var DefaultSettings Settings = Settings{
 	Port:      6742,
 	Host:      "localhost",
 	DeviceIdx: 0,
+	Debug:     false,
+	FillBins:  false,
+	HueRate:   0.003 * 3, // 0.003 is 1 degree a tick
+
+	AmpScalar:   5000,
+	FilterRange: 2,
+	FilterMode:  ft.DoubleBoxFilter,
+	Decay:       80,
 }
 
-func (s *Settings) InitSettings(configPath string) error {
+var fieldMapping = map[string]interface{}{
+	// config file keys (see ./util.go for aliases for these)
+	"Port":        setIntConfig,
+	"Host":        setStringConfig,
+	"DeviceIdx":   setIntConfig,
+	"FillBins":    setBoolConfig,
+	"HueRate":     setFloatConfig,
+	"AmpScalar":   setIntConfig,
+	"FilterRange": setIntConfig,
+	"FilterMode":  setFilterModeConfig,
+	"Decay":       setIntConfig,
+
+	// cli args
+	"--config":       setStringArgs,
+	"--device-idx":   setIntArgs,
+	"--host":         setStringArgs,
+	"--port":         setIntArgs,
+	"--debug":        setBoolTrueArgs,
+	"--fill-bins":    setBoolTrueArgs,
+	"--hue-rate":     setFloatArgs,
+	"--amp-scalar":   setIntArgs,
+	"--filter-range": setIntArgs,
+	"--filter-mode":  setFilterModeArgs,
+	"--decay":        setIntArgs,
+}
+
+func (s *Settings) InitSettings() error {
 	var err error
-	if configPath == "" {
+	if s.Config == "" {
 		err = s.getSettingsDefaultPath()
 	} else {
-		err = s.getSettings(configPath)
+		err = s.getSettings(s.Config)
 	}
 	if err != nil {
 		return err
 	}
 
+	// VERY BAD SOLUTION FIX THIS !!
 	// set uninited values to default
 	if s.DeviceIdx == -1 {
 		s.DeviceIdx = DefaultSettings.DeviceIdx
@@ -45,6 +86,21 @@ func (s *Settings) InitSettings(configPath string) error {
 	}
 	if s.Host == "-1" {
 		s.Host = DefaultSettings.Host
+	}
+	if s.HueRate == -1.0 {
+		s.HueRate = DefaultSettings.HueRate
+	}
+	if s.AmpScalar == -1.0 {
+		s.AmpScalar = DefaultSettings.AmpScalar
+	}
+	if s.FilterRange == -1.0 {
+		s.FilterRange = DefaultSettings.FilterRange
+	}
+	if s.FilterMode == -1.0 {
+		s.FilterMode = DefaultSettings.FilterMode
+	}
+	if s.Decay == -1.0 {
+		s.Decay = DefaultSettings.Decay
 	}
 
 	return nil
@@ -77,14 +133,6 @@ func (s *Settings) getSettings(path string) error {
 	return s.parseConfigFile(f)
 }
 
-func parseInt(s string, lineNum int) (int, error) {
-	num, err := strconv.Atoi(s)
-	if err != nil {
-		return 0, errors.New(fmt.Sprintf("error while parsing int at line: %d", lineNum))
-	}
-	return num, nil
-}
-
 func (s *Settings) parseConfigFile(file *os.File) error {
 	buf, err := io.ReadAll(file)
 	if err != nil {
@@ -96,6 +144,11 @@ func (s *Settings) parseConfigFile(file *os.File) error {
 	// ignore whitespaces
 	conts = strings.ReplaceAll(conts, " ", "")
 	lines := strings.Split(conts, "\n")
+
+	var (
+		funcType interface{}
+		ok       bool
+	)
 
 	for i, l := range lines {
 		// ignore empty lines
@@ -112,86 +165,28 @@ func (s *Settings) parseConfigFile(file *os.File) error {
 			return errors.New(fmt.Sprintf("config error near line: %d", i+1))
 		}
 
-		key := strings.ToLower(keyVal[0])
+		key := keyVal[0]
 		val := keyVal[1]
 
-		switch key {
-		case "ampscalar", "amp-scalar":
-			if s.FftPtr.AmpScalar != fft.DefaultFFT.AmpScalar {
-				break
-			}
+		if funcType, ok, key = getFuncType(key); !ok {
+			return errors.New(fmt.Sprintf("no such key on line: %d: %s", i+1, keyVal[0]))
+		}
 
-			num, err := parseInt(val, i+1)
-			if err != nil {
-				return err
-			}
-			s.FftPtr.AmpScalar = num
-		case "filtermode", "filter-mode":
-			if s.FftPtr.FilterMode != fft.DefaultFFT.FilterMode {
-				break
-			}
+		switch f := funcType.(type) {
+		case setIntConfigType:
+			err = f(getFieldPointer(s, key).(*int), val, i+1)
+		case setStringConfigType:
+			f(getFieldPointer(s, key).(*string), val)
+		case setBoolConfigType:
+			err = f(getFieldPointer(s, key).(*bool), val, i+1)
+		case setFloatConfigType:
+			err = f(getFieldPointer(s, key).(*float64), val, i+1)
+		case setFilterModeConfigType:
+			err = f(getFieldPointer(s, key).(*ft.FilterType), val, i+1)
+		}
 
-			switch strings.ToLower(val) {
-			case "block":
-				s.FftPtr.FilterMode = fft.Block
-			case "box", "boxfilter":
-				s.FftPtr.FilterMode = fft.BoxFilter
-			case "dbox", "doublebox", "doubleboxfilter":
-				s.FftPtr.FilterMode = fft.DoubleBoxFilter
-			case "none":
-				s.FftPtr.FilterMode = fft.None
-			default:
-				return errors.New("no such filter specifed in config file: " + val)
-			}
-		case "filterrange", "filter-range":
-			if s.FftPtr.FilterRange != fft.DefaultFFT.FilterRange {
-				break
-			}
-
-			num, err := parseInt(val, i+1)
-			if err != nil {
-				return err
-			}
-			s.FftPtr.FilterRange = num
-		case "decay":
-			if s.FftPtr.Decay != fft.DefaultFFT.Decay {
-				break
-			}
-
-			num, err := parseInt(val, i+1)
-			if err != nil {
-				return err
-			}
-			s.FftPtr.Decay = num
-		case "port":
-			if s.Port != -1 {
-				break
-			}
-
-			num, err := parseInt(val, i+1)
-			if err != nil {
-				return err
-			}
-			s.Port = num
-		case "host":
-			if s.Host != "-1" {
-				break
-			}
-
-			s.Host = val
-		case "deviceidx":
-			if s.DeviceIdx != -1 {
-				break
-			}
-
-			num, err := parseInt(val, i+1)
-			if err != nil {
-				return err
-			}
-			s.DeviceIdx = num
-		default:
-			return errors.New(fmt.Sprintf("no such key on line: %d", i+1))
-
+		if err != nil {
+			return err
 		}
 	}
 

@@ -98,7 +98,7 @@ func (v VBZ) renderBins() string {
 		startX       = (w - (binWidth * fft.BINS_SIZE)) / 2
 
 		peakLow = v.getPeakLowAmp()
-		hueRate = math.Pow(v.hueRate+(v.bpm.bpm*1e-4), 0.99)
+		hueRate = math.Pow(v.settings.HueRate+(v.bpm.bpm*1e-4), 0.99)
 	)
 
 	if binWidth == 0 {
@@ -115,7 +115,7 @@ func (v VBZ) renderBins() string {
 		}
 		// TODO ? bpm scaling the hueRate is a bit distracting.
 		// maybe add a option to enable/disable the bpm scaling
-		v.prevBHues[i] = math.Mod(1+v.prevBHues[i]-v.hueRate, 1)
+		v.prevBHues[i] = math.Mod(1+v.prevBHues[i]-v.settings.HueRate, 1)
 		v.prevFHues[i] = math.Mod(1+v.prevFHues[i]-hueRate*0.7, 1)
 
 		barHeight := min(int(mag*float64(binMaxHeight)), binMaxHeight)
@@ -135,11 +135,11 @@ func (v VBZ) renderBins() string {
 	}
 
 	// fill the black spots at left & right
-	if startX != 0 && v.fillBins {
+	if startX != 0 && v.settings.FillBins {
 		v.applyFillToBins(&fb, startX, binMaxHeight, binWidth, peakLow, binF, w, h)
 	}
 
-	if !v.debug {
+	if !v.settings.Debug {
 		return fb.View()
 	}
 
@@ -148,6 +148,7 @@ func (v VBZ) renderBins() string {
 	_v := []string{
 		fmt.Sprintf("fps: %d", v.fps),
 		fmt.Sprintf("w: %d, h: %d", w, h),
+		fmt.Sprintf("port: %d", v.settings.Port),
 		fmt.Sprintf("bpm: %.2f", v.bpm.bpm),
 		fmt.Sprintf("hueRate: %.4f", hueRate),
 		fmt.Sprintf("startX: %d", startX),

@@ -40,7 +40,9 @@ func InitDevice(devIdx int, bufferSize int, sampleRate float64, cb malgo.DataPro
 	}()
 
 	if devIdx >= len(devices) {
-		return AudioCapture{}, errors.New("device idx too large")
+		return AudioCapture{}, errors.New(
+			fmt.Sprintf("device idx: %d too large", devIdx),
+		)
 	}
 	selDev := devices[devIdx]
 
