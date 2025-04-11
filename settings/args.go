@@ -42,6 +42,8 @@ func (s *Settings) ParseEarlyArgs() error {
 			skipNext = true
 		case setBoolTrueArgsType:
 			f(getFieldPointer(s, key).(*bool))
+		case setBoolFalseArgsType:
+			f(getFieldPointer(s, key).(*bool))
 		case setFloatArgsType:
 			err = f(getFieldPointer(s, key).(*float64), i+1, arg)
 			skipNext = true

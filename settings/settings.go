@@ -17,12 +17,14 @@ type Settings struct {
 	DeviceIdx   int
 	Debug       bool
 	FillBins    bool
+	NoLeds      bool
 	HueRate     float64
 	AmpScalar   int
 	FilterMode  ft.FilterType
 	FilterRange int
 	Decay       int
-	Config      string // config path
+
+	Config string // config path
 }
 
 var DefaultSettings Settings = Settings{
@@ -58,6 +60,7 @@ var fieldMapping = map[string]interface{}{
 	"--port":         setIntArgs,
 	"--debug":        setBoolTrueArgs,
 	"--fill-bins":    setBoolTrueArgs,
+	"--no-leds":      setBoolTrueArgs,
 	"--hue-rate":     setFloatArgs,
 	"--amp-scalar":   setIntArgs,
 	"--filter-range": setIntArgs,

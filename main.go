@@ -80,11 +80,7 @@ func (v VBZ) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case Refresh:
 	}
 
-	v.ui.TickCount++
-	now := time.Now()
-	frameTime := now.Sub(v.ui.LastTickTime)
-	v.ui.LastTickTime = now
-	v.ui.FPS = int(time.Second / frameTime)
+	v.ui.Update(msg)
 
 	return v, nil
 }
@@ -101,7 +97,9 @@ func (v *VBZ) onData() malgo.DataProc {
 		v.bpm.UpdateBPM(samples)
 		v.hues.UpdateHues(v.settings.HueRate, v.bpm.Bpm)
 
-		v.led.SetVibe(v.hues, v.fft.PeakLowAmp)
+		if !v.settings.NoLeds {
+			v.led.SetVibe(v.hues, v.fft.PeakLowAmp)
+		}
 
 		v.triggerRefresh()
 		time.Sleep(1 * time.Millisecond)

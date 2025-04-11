@@ -87,7 +87,7 @@ func setBoolTrueArgs(field *bool) {
 	*field = true
 }
 
-type setBoolFalseArgsType = func(field *bool)
+type setBoolFalseArgsType func(field *bool)
 
 func setBoolFalseArgs(field *bool) {
 	*field = false
