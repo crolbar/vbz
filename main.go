@@ -1,13 +1,15 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"time"
 	"vbz/audioCapture"
+	"vbz/bpm"
 	"vbz/fft"
-	"vbz/orgb"
+	"vbz/hues"
+	"vbz/led"
 	"vbz/settings"
+	"vbz/ui"
 
 	tea "github.com/charmbracelet/bubbletea"
 	lb "github.com/crolbar/lipbalm"
@@ -15,159 +17,21 @@ import (
 )
 
 type VBZ struct {
-	conn         *orgb.ORGBConn
-	countrollers []orgb.Controller
-
+	p     *tea.Program
+	led   *led.LED
 	audio *audioCapture.AudioCapture
+	bpm   *bpm.BPM
+	fft   *fft.FFT
+	hues  *hues.Hues
 
-	settings   settings.Settings
+	ui ui.Ui
 
-	width  int
-	height int
+	settings *settings.Settings
 
 	shouldNotEnterTui bool
-
-	tickCount    uint
-	lastTickTime time.Time
-	fps          int
-
-	bpm *BPM
-
-	prevFHues []float64
-	prevBHues []float64
-
-	fft *fft.FFT
-}
-
-type BPM struct {
-	bpm        float64
-	lastEnergy float64
-	lastBeat   time.Time
-	hasBeat    bool
 }
 
 const SampleRate float64 = 10000
-
-var p *tea.Program
-
-type Refresh struct{}
-
-func (v *VBZ) triggerRefresh() {
-	if p != nil {
-		p.Send(Refresh{})
-	}
-}
-func (v *VBZ) triggerLaterRefresh() {
-	go func() {
-		time.Sleep(time.Millisecond * 16)
-		if p != nil {
-			p.Send(Refresh{})
-		}
-	}()
-}
-
-func (v *VBZ) initORGBConn() error {
-	conn, err := orgb.Connect(v.settings.Host, v.settings.Port)
-	if err != nil {
-		return err
-	}
-	v.conn = conn
-
-	count, err := conn.GetControllerCount()
-	if err != nil {
-		return err
-	}
-
-	v.countrollers = make([]orgb.Controller, count)
-	for i := 0; i < count; i++ {
-		controller, err := conn.GetController(i)
-		if err != nil {
-			return err
-		}
-		v.countrollers[i] = controller
-	}
-
-	return nil
-}
-
-func (v *VBZ) initAudio() error {
-	audio, err := audioCapture.InitDevice(v.settings.DeviceIdx, fft.BUFFER_SIZE, SampleRate, v.onData())
-	if err != nil {
-		return err
-	}
-
-	v.audio = &audio
-
-	return nil
-}
-
-func (v *VBZ) initHues() {
-	v.prevFHues = make([]float64, fft.BINS_SIZE)
-	v.prevBHues = make([]float64, fft.BINS_SIZE)
-	for i := 0; i < fft.BINS_SIZE; i++ {
-		v.prevFHues[i] = float64(i) / fft.BINS_SIZE
-		v.prevBHues[i] = float64(i+3) / fft.BINS_SIZE
-	}
-}
-
-func initVBZ() (VBZ, error) {
-	var err error
-
-	var defaultFFT = fft.DefaultFFT
-	vbz := VBZ{
-		tickCount: 0,
-		fft:       &defaultFFT,
-		bpm: &BPM{
-			bpm:        0,
-			lastEnergy: 0,
-			lastBeat:   time.Time{},
-			hasBeat:    false,
-		},
-		settings: settings.Settings{ // TODO FIX THESE -1s
-			DeviceIdx:   -1,
-			Port:        -1,
-			Host:        "-1",
-			Debug:       false,
-			HueRate:     -1.0,
-			AmpScalar:   -1,
-			FilterRange: -1,
-			FilterMode:  -1,
-			Decay:       -1,
-		},
-	}
-	vbz.initHues()
-
-	err = vbz.settings.ParseEarlyArgs()
-	if err != nil {
-		return VBZ{}, err
-	}
-	if vbz.shouldNotEnterTui {
-		return vbz, nil
-	}
-
-	err = vbz.settings.InitSettings()
-	if err != nil {
-		return VBZ{}, errors.New(fmt.Sprintf("Error seting settings: %s", err.Error()))
-	}
-	vbz.fft.SetSettingsPtr(&vbz.settings)
-
-	err = vbz.initORGBConn()
-	if err != nil {
-		return VBZ{}, errors.New(fmt.Sprintf("Error initializing openrgb connection: %s", err.Error()))
-	}
-
-	err = vbz.initAudio()
-	if err != nil {
-		return VBZ{}, errors.New(fmt.Sprintf("Error initializing audio capture dev: %s", err.Error()))
-	}
-
-	err = vbz.parseLateArgs()
-	if err != nil {
-		return VBZ{}, errors.New(fmt.Sprintf("Error parsing args: %s", err.Error()))
-	}
-
-	return vbz, nil
-}
 
 func main() {
 	vbz, err := initVBZ()
@@ -179,13 +43,13 @@ func main() {
 		return
 	}
 
-	defer vbz.conn.Close()
+	defer vbz.led.Conn.Close()
 
 	vbz.audio.StartDev()
 	defer vbz.audio.Dev.Uninit()
 
-	p = tea.NewProgram(vbz, tea.WithAltScreen())
-	if _, err := p.Run(); err != nil {
+	*vbz.p = *tea.NewProgram(vbz, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	if _, err := vbz.p.Run(); err != nil {
 		fmt.Println(err)
 		return
 	}
@@ -200,37 +64,44 @@ func (v VBZ) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "r":
-			v.setAllLEDsToColor(255, 0, 0)
+			v.led.SetAllLEDsToColor(255, 0, 0)
 		case "g":
-			v.setAllLEDsToColor(0, 255, 0)
+			v.led.SetAllLEDsToColor(0, 255, 0)
 		case "b":
-			v.setAllLEDsToColor(0, 0, 255)
+			v.led.SetAllLEDsToColor(0, 0, 255)
 		case "B":
-			v.setAllLEDsToColor(0, 0, 0)
+			v.led.SetAllLEDsToColor(0, 0, 0)
 		case "q":
 			return v, tea.Quit
 		}
+	case tea.MouseMsg:
 	case tea.WindowSizeMsg:
-		v.width = msg.Width
-		v.height = msg.Height
+		v.ui.SetSize(msg)
 	case Refresh:
 	}
 
-	v.tickCount++
+	v.ui.TickCount++
 	now := time.Now()
-	frameTime := now.Sub(v.lastTickTime)
-	v.lastTickTime = now
-	v.fps = int(time.Second / frameTime)
+	frameTime := now.Sub(v.ui.LastTickTime)
+	v.ui.LastTickTime = now
+	v.ui.FPS = int(time.Second / frameTime)
 
 	return v, nil
+}
+
+func (v VBZ) View() string {
+	return v.ui.View()
 }
 
 func (v *VBZ) onData() malgo.DataProc {
 	return func(pOutputSample, pInputSamples []byte, frameCount uint32) {
 		samples, _ := byteToU8(pInputSamples)
-		v.fft.ApplyFFT(samples)
-		v.getBPM(samples)
-		// v.setVibe()
+		v.fft.UpdateFFT(samples)
+		v.fft.UpdatePeakLowAmp()
+		v.bpm.UpdateBPM(samples)
+		v.hues.UpdateHues(v.settings.HueRate, v.bpm.Bpm)
+
+		v.led.SetVibe(v.hues, v.fft.PeakLowAmp)
 
 		v.triggerRefresh()
 		time.Sleep(1 * time.Millisecond)

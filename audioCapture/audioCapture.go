@@ -13,7 +13,7 @@ type AudioCapture struct {
 	Dev *malgo.Device
 
 	FrameDurationMs float64
-	SampleRate    float64
+	SampleRate      float64
 }
 
 func getDevices() (*malgo.AllocatedContext, []malgo.DeviceInfo, error) {
@@ -62,8 +62,8 @@ func InitDevice(devIdx int, bufferSize int, sampleRate float64, cb malgo.DataPro
 	}
 
 	return AudioCapture{
-		Dev:           device,
-		SampleRate:    float64(sampleRate),
+		Dev:             device,
+		SampleRate:      float64(sampleRate),
 		FrameDurationMs: (float64(fft.BUFFER_SIZE) / sampleRate) * 1000,
 	}, nil
 }

@@ -16,8 +16,9 @@ const BUFFER_SIZE = 256
 const BINS_SIZE = 256 / 4
 
 type FFT struct {
-	Bins []float64
-	s    *settings.Settings
+	Bins       []float64
+	s          *settings.Settings
+	PeakLowAmp float64
 }
 
 var DefaultFFT FFT = FFT{
@@ -82,7 +83,7 @@ func (f *FFT) filterFFT() {
 	}
 }
 
-func (f *FFT) ApplyFFT(samples []uint8) {
+func (f *FFT) UpdateFFT(samples []uint8) {
 	var fft_tmp [BUFFER_SIZE]float64
 
 	// shift by half of 256 to center the u8 on 0
@@ -127,6 +128,19 @@ func (f *FFT) ApplyFFT(samples []uint8) {
 	}
 
 	f.filterFFT()
+}
+
+func (f *FFT) UpdatePeakLowAmp() {
+	peakLow := 0.0
+	for i, mag := range f.Bins {
+		if i > 5 {
+			break
+		}
+		if mag > float64(peakLow) {
+			peakLow = mag
+		}
+	}
+	f.PeakLowAmp = peakLow
 }
 
 func convToCFloatArray(a [BUFFER_SIZE]float64) *C.float {
