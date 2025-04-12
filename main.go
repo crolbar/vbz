@@ -43,16 +43,16 @@ func main() {
 		return
 	}
 
-	defer vbz.led.Conn.Close()
-
 	vbz.audio.StartDev()
-	defer vbz.audio.Dev.Uninit()
 
 	*vbz.p = *tea.NewProgram(vbz, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	if _, err := vbz.p.Run(); err != nil {
 		fmt.Println(err)
 		return
 	}
+
+	vbz.audio.Dev.Uninit()
+	vbz.led.Conn.Close()
 }
 
 func (v VBZ) Init() tea.Cmd {
@@ -60,29 +60,21 @@ func (v VBZ) Init() tea.Cmd {
 }
 
 func (v VBZ) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "r":
-			v.led.SetAllLEDsToColor(255, 0, 0)
-		case "g":
-			v.led.SetAllLEDsToColor(0, 255, 0)
-		case "b":
-			v.led.SetAllLEDsToColor(0, 0, 255)
-		case "B":
-			v.led.SetAllLEDsToColor(0, 0, 0)
-		case "q":
+		case "ctrl+c":
 			return v, tea.Quit
 		}
-	case tea.MouseMsg:
 	case tea.WindowSizeMsg:
 		v.ui.SetSize(msg)
 	case Refresh:
 	}
 
-	v.ui.Update(msg)
+	cmd = v.ui.Update(msg)
 
-	return v, nil
+	return v, cmd
 }
 
 func (v VBZ) View() string {

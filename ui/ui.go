@@ -2,10 +2,13 @@ package ui
 
 import (
 	"time"
+	"vbz/audioCapture"
 	"vbz/bpm"
 	"vbz/fft"
 	"vbz/hues"
+	"vbz/led"
 	"vbz/settings"
+	"vbz/ui/settingsOverlay"
 	"vbz/ui/tab"
 	"vbz/ui/tab/bins"
 	"vbz/ui/tab/circle"
@@ -26,6 +29,9 @@ type Ui struct {
 
 	tabs   [tab.Last__]tab.Tab
 	selTab tab.TabType
+
+	SettingsOverlay *settingsOverlay.SettingsOverlay
+	showOverlay     bool
 }
 
 func InitUi(
@@ -33,13 +39,17 @@ func InitUi(
 	sets *settings.Settings,
 	hues *hues.Hues,
 	bpm *bpm.BPM,
+	led *led.LED,
+	audio *audioCapture.AudioCapture,
 ) Ui {
 	u := Ui{
 		d: uiData.UiData{
-			Fft:  fft,
-			Sets: sets,
-			Hues: hues,
-			Bpm:  bpm,
+			Fft:   fft,
+			Sets:  sets,
+			Hues:  hues,
+			Bpm:   bpm,
+			Led:   led,
+			Audio: audio,
 
 			TickCount:    0,
 			LastTickTime: time.Time{},
@@ -48,9 +58,11 @@ func InitUi(
 
 		fb: lbfb.NewFrameBuffer(0, 0),
 
-		selTab: tab.Master,
+		selTab:      tab.Master,
+		showOverlay: true,
 	}
 
+	u.SettingsOverlay = settingsOverlay.Init(u.d)
 	u.tabs[tab.Bins] = bins.Init(u.d)
 	u.tabs[tab.Circle] = circle.Init(u.d)
 	u.tabs[tab.Master] = master.Init(u.d, u.tabs[tab.Bins], u.tabs[tab.Circle])
@@ -58,17 +70,30 @@ func InitUi(
 	return u
 }
 
-func (ui *Ui) Update(msg tea.Msg) {
+func (ui *Ui) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "1":
-			ui.selTab = tab.Master
-		case "2":
-			ui.selTab = tab.Bins
-		case "3":
-			ui.selTab = tab.Circle
+		if !ui.showOverlay {
+			switch msg.String() {
+			case "1":
+				ui.selTab = tab.Master
+			case "2":
+				ui.selTab = tab.Bins
+			case "3":
+				ui.selTab = tab.Circle
+			case "q":
+				return tea.Quit
+			}
 		}
+
+		switch msg.String() {
+		case "`", "f1":
+			ui.showOverlay = !ui.showOverlay
+		}
+	}
+
+	if ui.showOverlay {
+		ui.SettingsOverlay.Update(msg)
 	}
 
 	ui.SelTab().Update(msg)
@@ -78,6 +103,8 @@ func (ui *Ui) Update(msg tea.Msg) {
 	frameTime := now.Sub(ui.d.LastTickTime)
 	ui.d.LastTickTime = now
 	ui.d.FPS = int(time.Second / frameTime)
+
+	return nil
 }
 
 func (ui *Ui) SetSize(msg tea.WindowSizeMsg) {
@@ -85,6 +112,7 @@ func (ui *Ui) SetSize(msg tea.WindowSizeMsg) {
 	ui.Height = msg.Height
 	ui.fb.Resize(ui.Width, ui.Height)
 
+	ui.SettingsOverlay.Resize(msg)
 	ui.SelTab().Resize(msg)
 }
 
@@ -103,6 +131,14 @@ func (ui Ui) View() string {
 	ui.fb.Clear()
 
 	ui.SelTab().Render(&ui.fb)
+
+	if ui.showOverlay {
+		ui.SettingsOverlay.Render(&ui.fb)
+	}
+
+	if ui.d.Sets.Debug {
+		ui.renderDebug()
+	}
 
 	return ui.fb.View()
 }

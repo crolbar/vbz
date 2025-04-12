@@ -7,4 +7,5 @@ const (
 	Block
 	BoxFilter
 	DoubleBoxFilter
+	Last__
 )

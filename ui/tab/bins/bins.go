@@ -16,9 +16,6 @@ import (
 
 type Bins struct {
 	d uiData.UiData
-
-	mouse tea.MouseEvent
-	key   string
 }
 
 func Init(d uiData.UiData) *Bins {
@@ -26,14 +23,7 @@ func Init(d uiData.UiData) *Bins {
 }
 
 func (b *Bins) Resize(tea.WindowSizeMsg) {}
-func (b *Bins) Update(msg tea.Msg) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		b.key = msg.String()
-	case tea.MouseMsg:
-		b.mouse = tea.MouseEvent(msg)
-	}
-}
+func (b *Bins) Update(msg tea.Msg)       {}
 
 func (b Bins) Render(fb *lbfb.FrameBuffer) {
 	b.RenderIn(fb, fb.Size())
@@ -93,10 +83,6 @@ func (b Bins) RenderIn(fb *lbfb.FrameBuffer, rect lbl.Rect) {
 	if startX != 0 && b.d.Sets.FillBins {
 		b.applyFillToBins(fb, startX, binMaxHeight, binWidth, peakLow, binF, w, h)
 	}
-
-	if b.d.Sets.Debug {
-		b.renderDebug(fb)
-	}
 }
 
 func (b Bins) applyFillToBins(
@@ -155,36 +141,4 @@ func (b Bins) applyFillToBins(
 			lbl.NewRect(uint16(i), uint16(h-barHeight), uint16(binWidth), uint16(barHeight)),
 		)
 	}
-}
-
-func (b Bins) renderDebug(fb *lbfb.FrameBuffer) {
-	var (
-		fbsize = fb.Size()
-		w      = int(fbsize.Width)
-		h      = int(fbsize.Height)
-	)
-
-	_v := []string{
-		fmt.Sprintf("fps: %d", b.d.FPS),
-		fmt.Sprintf("w: %d, h: %d", w, h),
-		fmt.Sprintf("port: %d", b.d.Sets.Port),
-		fmt.Sprintf("dev: %d", b.d.Sets.DeviceIdx),
-		fmt.Sprintf("filterMode: %d", b.d.Sets.FilterMode),
-		fmt.Sprintf("bpm: %.2f", b.d.Bpm.Bpm),
-		fmt.Sprintf("hueRate: %.4f", math.Pow(b.d.Sets.HueRate+(b.d.Bpm.Bpm*1e-4), 0.99)),
-		fmt.Sprintf("key: %v", b.key),
-		fmt.Sprintf("mx: %d my: %d", b.mouse.X, b.mouse.Y),
-	}
-	for i, str := range _v {
-		fb.RenderString(str, lbl.NewRect(0, uint16(i), 15, 1))
-	}
-
-	color := lb.ColorBg(0)
-	if b.d.Bpm.HasBeat {
-		color = lb.ColorBg(1)
-	}
-
-	box := "               " + strings.Repeat("\n               ", 6)
-
-	fb.RenderString(lb.SetColor(color, box), lbl.NewRect(uint16(w-15), 0, 15, 5))
 }

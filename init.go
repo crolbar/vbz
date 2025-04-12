@@ -65,7 +65,7 @@ func initVBZ() (VBZ, error) {
 	}
 
 	// capture device for audio samples
-	audio, err := audioCapture.InitDevice(
+	audio, err := audioCapture.InitAudioCapture(
 		vbz.settings.DeviceIdx,
 		fft.BUFFER_SIZE,
 		SampleRate,
@@ -88,6 +88,8 @@ func initVBZ() (VBZ, error) {
 		vbz.settings,
 		vbz.hues,
 		vbz.bpm,
+		vbz.led,
+		vbz.audio,
 	)
 
 	return vbz, nil

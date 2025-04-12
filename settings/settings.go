@@ -12,17 +12,17 @@ import (
 
 // in config file keys are case insensitive
 type Settings struct {
-	Port        int
-	Host        string
+	Port        int    // port of openrgb server
+	Host        string // host of openrgb server
 	DeviceIdx   int
 	Debug       bool
-	FillBins    bool
-	NoLeds      bool
-	HueRate     float64
-	AmpScalar   int
-	FilterMode  ft.FilterType
-	FilterRange int
-	Decay       int
+	FillBins    bool          // fill the edges of the screen in bins
+	NoLeds      bool          // don't set leds from openrgb (only visualizer)
+	HueRate     float64       // rate (angle a tick) at which the hue will change
+	AmpScalar   int           // scales the amps for better visualization
+	FilterMode  ft.FilterType // avg mode applied to the fft
+	FilterRange int           // range of the avg mode
+	Decay       int           // % at which the magnitute drops a tick
 
 	Config string // config path
 }
@@ -33,6 +33,7 @@ var DefaultSettings Settings = Settings{
 	DeviceIdx: 0,
 	Debug:     false,
 	FillBins:  false,
+	NoLeds:    false,
 	HueRate:   0.003 * 3, // 0.003 is 1 degree a tick
 
 	AmpScalar:   5000,
