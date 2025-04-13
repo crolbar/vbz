@@ -5,12 +5,13 @@ import (
 	bn "encoding/binary"
 	"fmt"
 	"net"
+	"time"
 )
 
 const HEADER_SIZE int = 4 * 4
 
 func Connect(host string, port int) (*ORGBConn, error) {
-	c, err := net.Dial("tcp", fmt.Sprintf("%s:%d", host, port))
+	c, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", host, port), time.Second*3)
 	if err != nil {
 		return nil, err
 	}
