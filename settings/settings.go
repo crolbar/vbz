@@ -18,6 +18,7 @@ type Settings struct {
 	Debug       bool
 	FillBins    bool          // fill the edges of the screen in bins
 	NoLeds      bool          // don't set leds from openrgb (only visualizer)
+	NoOpenRgb   bool          // don't open the openrgb connection
 	HueRate     float64       // rate (angle a tick) at which the hue will change
 	AmpScalar   int           // scales the amps for better visualization
 	FilterMode  ft.FilterType // avg mode applied to the fft
@@ -34,6 +35,7 @@ var DefaultSettings Settings = Settings{
 	Debug:     false,
 	FillBins:  false,
 	NoLeds:    false,
+	NoOpenRgb: false,
 	HueRate:   0.003 * 3, // 0.003 is 1 degree a tick
 
 	AmpScalar:   5000,
@@ -62,6 +64,7 @@ var fieldMapping = map[string]interface{}{
 	"--debug":        setBoolTrueArgs,
 	"--fill-bins":    setBoolTrueArgs,
 	"--no-leds":      setBoolTrueArgs,
+	"--no-open-rgb":  setBoolTrueArgs,
 	"--hue-rate":     setFloatArgs,
 	"--amp-scalar":   setIntArgs,
 	"--filter-range": setIntArgs,

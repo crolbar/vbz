@@ -52,7 +52,9 @@ func main() {
 	}
 
 	vbz.audio.Dev.Uninit()
-	vbz.led.Conn.Close()
+	if vbz.led.Conn != nil {
+		vbz.led.Conn.Close()
+	}
 }
 
 func (v VBZ) Init() tea.Cmd {
@@ -89,7 +91,7 @@ func (v *VBZ) onData() malgo.DataProc {
 		v.bpm.UpdateBPM(samples)
 		v.hues.UpdateHues(v.settings.HueRate, v.bpm.Bpm)
 
-		if !v.settings.NoLeds {
+		if !v.settings.NoLeds && v.led.Conn != nil {
 			v.led.SetVibe(v.hues, v.fft.PeakLowAmp)
 		}
 
