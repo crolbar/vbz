@@ -25,6 +25,14 @@ func wrapTriggerE(c func() error) func(any) error {
 	}
 }
 
+func wrapTriggerMultyE(c func(any) error, c2 func()) func(any) error {
+	return func(any) (err error) {
+		err = c(nil)
+		c2()
+		return
+	}
+}
+
 func (o *SettingsOverlay) setTriggers() {
 	for i := 0; i < len(o.rects); i++ {
 		if i >= DeviceButtonsOffset { // device buttons
@@ -63,9 +71,9 @@ func (o *SettingsOverlay) setTriggers() {
 			case tiHueRate:
 				o.ht.SetTrigger(i, o.wrapFS(&o.tiHueRate))
 			case sAmpScalar:
-				o.ht.SetTrigger(i, wrapTrigger(o.handleSAmpScalar))
+				o.ht.SetTrigger(i, wrapTriggerMultyE(o.wrapFS(&o.sAmpScalar), o.handleSAmpScalar))
 			case sHueRate:
-				o.ht.SetTrigger(i, wrapTrigger(o.handleSHueRate))
+				o.ht.SetTrigger(i, wrapTriggerMultyE(o.wrapFS(&o.sHueRate), o.handleSHueRate))
 			}
 		}
 	}
@@ -138,15 +146,11 @@ func (o *SettingsOverlay) handleTiAmpScalar() error {
 }
 
 func (o *SettingsOverlay) handleSHueRate() {
-	o.handleFocusSwitch(&o.sHueRate)
-
 	o.d.Sets.HueRate = o.sHueRate.GetRatio() / 10
 	o.tiHueRate.SetText(fmt.Sprintf("%.4f", o.d.Sets.HueRate))
 }
 
 func (o *SettingsOverlay) handleSAmpScalar() {
-	o.handleFocusSwitch(&o.sAmpScalar)
-
 	o.d.Sets.AmpScalar = int(MaxAmpScalar * o.sAmpScalar.GetRatio())
 	o.tiAmpScalar.SetText(fmt.Sprintf("%d", o.d.Sets.AmpScalar))
 }

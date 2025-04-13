@@ -19,17 +19,17 @@ import (
 type selectedRect int
 
 const (
-	bNoLeds selectedRect = iota
-	bFillBins
-	bSetBlack
+	sAmpScalar selectedRect = iota
+	sHueRate
+	tiAmpScalar
+	tiHueRate
 	tiHost
 	tiPort
-	tiAmpScalar
-	tiDecay
 	tiFilterRange
-	tiHueRate
-	sAmpScalar
-	sHueRate
+	tiDecay
+	bNoLeds
+	bFillBins
+	bSetBlack
 	Last__
 )
 
@@ -54,7 +54,8 @@ type SettingsOverlay struct {
 
 	errorText lbti.TextInput
 
-	focusedComponent focusedComponent
+	focusedComponent   focusedComponent
+	focusedComponentKb int
 
 	ht lbht.HitTesting
 
@@ -141,6 +142,13 @@ func Init(d uiData.UiData) *SettingsOverlay {
 			),
 		}
 	)
+
+	lbs.DecreaseKeys = []string{
+		"left", "h", "ctrl+b",
+	}
+	lbs.IncreaseKeys = []string{
+		"right", "l", "ctrl+f",
+	}
 
 	o.initBDevices()
 	o.setTriggers()
@@ -264,31 +272,77 @@ func (o *SettingsOverlay) Resize(msg tea.WindowSizeMsg) {
 func (o *SettingsOverlay) Update(msg tea.Msg) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if o.focusedComponent == nil {
+		// if we are not focused on a text input
+		if _, ok := o.focusedComponent.(*lbti.TextInput); !ok {
 			switch msg.String() {
 			case "r":
 				o.d.Led.SetAllLEDsToColor(255, 0, 0)
+				return
 			case "g":
 				o.d.Led.SetAllLEDsToColor(0, 255, 0)
+				return
 			case "b":
 				o.d.Led.SetAllLEDsToColor(0, 0, 255)
+				return
 			case "B":
 				o.d.Led.SetAllLEDsToColor(0, 0, 0)
+				return
+			case "k":
+				o.handleFocusSwitchKbNext()
+				return
+			case "j":
+				o.handleFocusSwitchKbPrev()
+				return
+			case "f":
+				o.handleFocusSwitch(o.getComponentByIdx(o.focusedComponentKb))
+				return
 			}
 		}
 
 		switch msg.String() {
+		case "alt+k", "up":
+			o.handleFocusSwitchKbNext()
+		case "alt+j", "down":
+			o.handleFocusSwitchKbPrev()
 		case "esc", "enter":
 			err := o.deFocusComponent()
 			o.setErrorText(err)
+			return
 		}
 
-		o.tiAmpScalar.Update(msg.String())
-		o.tiHueRate.Update(msg.String())
-		o.tiHost.Update(msg.String())
-		o.tiPort.Update(msg.String())
-		o.tiFilterRange.Update(msg.String())
-		o.tiDecay.Update(msg.String())
+		key := msg.String()
+		o.tiAmpScalar.Update(key)
+		o.tiHueRate.Update(key)
+		o.tiHost.Update(key)
+		o.tiPort.Update(key)
+		o.tiFilterRange.Update(key)
+		o.tiDecay.Update(key)
+		if c, _ := o.sAmpScalar.Update(key); c {
+			o.handleSAmpScalar()
+		}
+		if c, _ := o.sHueRate.Update(key); c {
+			o.handleSHueRate()
+		}
+		if c, _ := o.bNoLeds.Update(key); c {
+			o.handleBNoLedsTrigger()
+		}
+		if c, _ := o.bFillBins.Update(key); c {
+			o.handleBFillBinsTrigger()
+		}
+		if c, _ := o.bSetBlack.Update(key); c {
+			o.handleBSetBlackTrigger()
+		}
+		for i := 0; i < DeviceButtonsOffset-FilterModeButtonsOffset; i++ {
+			if c, _ := o.bFilterModes[i].Update(key); c {
+				o.handleBFilterModes(ft.FilterType(i))
+			}
+		}
+
+		for i := 0; i < len(o.rects)-DeviceButtonsOffset; i++ {
+			if c, _ := o.bDevices[i].Update(key); c {
+				o.handleBDevices(i)
+			}
+		}
 	case tea.MouseMsg:
 		if msg.String() == "left release" {
 			return

@@ -4,7 +4,7 @@ go 1.23.6
 
 require (
 	github.com/charmbracelet/bubbletea v1.3.4
-	github.com/crolbar/lipbalm v0.0.0-20250413145532-74e4ffe978d7
+	github.com/crolbar/lipbalm v0.0.0-20250413173605-9bf7ee88db4f
 	github.com/gen2brain/malgo v0.11.23
 )
 
