@@ -52,6 +52,8 @@ type SettingsOverlay struct {
 	sAmpScalar lbs.Slider
 	sHueRate   lbs.Slider
 
+	errorText lbti.TextInput
+
 	focusedComponent focusedComponent
 
 	ht lbht.HitTesting
@@ -85,10 +87,11 @@ func Init(d uiData.UiData) *SettingsOverlay {
 		rectsSize = int(Last__) + int(ft.Last__) + d.Audio.NumDevices
 
 		o = &SettingsOverlay{
-			d:        d,
-			rects:    make([]lbl.Rect, rectsSize),
-			bDevices: make([]lbb.Button, d.Audio.NumDevices),
-			ht:       lbht.InitHT(rectsSize),
+			d:         d,
+			rects:     make([]lbl.Rect, rectsSize),
+			bDevices:  make([]lbb.Button, d.Audio.NumDevices),
+			ht:        lbht.InitHT(rectsSize),
+			errorText: lbti.NewTextInputR("", lbl.Rect{}, lbti.WithTextColor(lb.Color(1))),
 			bNoLeds: lbb.NewButtonR("NoLeds", lbl.NewRect(0, 0, 1, 1),
 				lbb.WithBorder(),
 				lbb.WithInitState(d.Sets.NoLeds),
@@ -207,6 +210,8 @@ func (o *SettingsOverlay) Resize(msg tea.WindowSizeMsg) {
 		rRows = l.Vercital().
 			Constrains(
 				lbl.NewConstrain(lbl.Length, uint16(deviceButtonsHeight)), // devices
+				lbl.NewConstrain(lbl.Percent, 100),
+				lbl.NewConstrain(lbl.Length, 1),
 			).Split(cols[1])
 	)
 
@@ -233,6 +238,9 @@ func (o *SettingsOverlay) Resize(msg tea.WindowSizeMsg) {
 	o.rects[bNoLeds] = lFourthRow[0]
 	o.rects[bFillBins] = lFourthRow[1]
 	o.rects[bSetBlack] = lFourthRow[4]
+
+	// r
+	o.errorText.Rect = rRows[2]
 
 	// filter modes
 	for i := FilterModeButtonsOffset; i < DeviceButtonsOffset; i++ {
@@ -271,7 +279,8 @@ func (o *SettingsOverlay) Update(msg tea.Msg) {
 
 		switch msg.String() {
 		case "esc", "enter":
-			o.deFocusComponent()
+			err := o.deFocusComponent()
+			o.setErrorText(err)
 		}
 
 		o.tiAmpScalar.Update(msg.String())
@@ -287,7 +296,9 @@ func (o *SettingsOverlay) Update(msg tea.Msg) {
 
 		o.sAmpScalar.UpdateMouseClick(msg.String(), msg.X, msg.Y, o.sAmpScalar.Rect)
 		o.sHueRate.UpdateMouseClick(msg.String(), msg.X, msg.Y, o.sHueRate.Rect)
-		o.ht.CheckHit(msg.X, msg.Y, o.rects[:])
+
+		err := o.ht.CheckHit(msg.X, msg.Y, o.rects[:])
+		o.setErrorText(err)
 	}
 }
 
@@ -311,6 +322,10 @@ func (o SettingsOverlay) Render(fb *lbfb.FrameBuffer) {
 	fb.RenderString(o.tiPort.View(), o.tiPort.Rect)
 	fb.RenderString(o.tiFilterRange.View(), o.tiFilterRange.Rect)
 	fb.RenderString(o.tiDecay.View(), o.tiDecay.Rect)
+
+	if o.errorText.Text.Len() > 0 {
+		fb.RenderString(o.errorText.View(), o.errorText.Rect)
+	}
 
 	for i := 0; i < DeviceButtonsOffset-FilterModeButtonsOffset; i++ {
 		fb.RenderString(o.bFilterModes[i].View(), o.bFilterModes[i].GetRect())

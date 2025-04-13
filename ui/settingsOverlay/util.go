@@ -7,6 +7,14 @@ import (
 	lbl "github.com/crolbar/lipbalm/layout"
 )
 
+func (o *SettingsOverlay) setErrorText(err error) {
+	if err != nil {
+		o.errorText.SetText(err.Error())
+	} else {
+		o.errorText.Text.Reset()
+	}
+}
+
 func (o *SettingsOverlay) initBDevices() {
 	_, devices, _ := audioCapture.GetDevices()
 	for i := 0; i < o.d.Audio.NumDevices; i++ {
