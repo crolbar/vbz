@@ -10,6 +10,7 @@ import (
 	ft "vbz/fft/filter_types"
 
 	lb "github.com/crolbar/lipbalm"
+	lbc "github.com/crolbar/lipbalm/components"
 	lbb "github.com/crolbar/lipbalm/components/button"
 	lbht "github.com/crolbar/lipbalm/components/hitTesting"
 	lbs "github.com/crolbar/lipbalm/components/slider"
@@ -36,25 +37,12 @@ const (
 type SettingsOverlay struct {
 	d uiData.UiData
 
-	bFilterModes [ft.Last__]lbb.Button
-	bDevices     []lbb.Button
-	bNoLeds      lbb.Button
-	bFillBins    lbb.Button
-	bSetBlack    lbb.Button
+	comps    []lbc.Component
+	compsLen int
 
-	tiHost        lbti.TextInput
-	tiPort        lbti.TextInput
-	tiAmpScalar   lbti.TextInput
-	tiDecay       lbti.TextInput
-	tiFilterRange lbti.TextInput
-	tiHueRate     lbti.TextInput
+	errorText *lbti.TextInput
 
-	sAmpScalar lbs.Slider
-	sHueRate   lbs.Slider
-
-	errorText lbti.TextInput
-
-	focusedComponent   focusedComponent
+	focusedComponent   lbc.Component
 	focusedComponentKb int
 
 	ht lbht.HitTesting
@@ -62,7 +50,7 @@ type SettingsOverlay struct {
 	// from 0 to Last__-1 are single rects
 	// from Last__ to Last__+ft.Last__-1 are filter mode button rects
 	// from Last__+ft.Last__ to Last__+ft.Last__+d.Audio.NumDevices-1 are device buttons
-	rects       []lbl.Rect
+	// rects       []lbl.Rect
 	overlayRect lbl.Rect
 
 	minHeight int
@@ -85,63 +73,79 @@ const (
 
 func Init(d uiData.UiData) *SettingsOverlay {
 	var (
-		rectsSize = int(Last__) + int(ft.Last__) + d.Audio.NumDevices
+		componentsSize = int(Last__) + int(ft.Last__) + d.Audio.NumDevices
 
 		o = &SettingsOverlay{
 			d:         d,
-			rects:     make([]lbl.Rect, rectsSize),
-			bDevices:  make([]lbb.Button, d.Audio.NumDevices),
-			ht:        lbht.InitHT(rectsSize),
-			errorText: lbti.NewTextInputR("", lbl.Rect{}, lbti.WithTextColor(lb.Color(1))),
-			bNoLeds: lbb.NewButtonR("NoLeds", lbl.NewRect(0, 0, 1, 1),
-				lbb.WithBorder(),
-				lbb.WithInitState(d.Sets.NoLeds),
-			),
-			bFillBins: lbb.NewButtonR("FillBins", lbl.NewRect(0, 0, 1, 1),
-				lbb.WithBorder(),
-				lbb.WithInitState(d.Sets.FillBins),
-			),
-			bSetBlack: lbb.NewButtonR("SetBlack", lbl.NewRect(0, 0, 1, 1), lbb.WithBorder()),
-			bFilterModes: [int(ft.Last__)]lbb.Button{
-				lbb.NewButtonR("None", lbl.Rect{}, lbb.WithBorder()),
-				lbb.NewButtonR("Block", lbl.Rect{}, lbb.WithBorder()),
-				lbb.NewButtonR("BoxFilter", lbl.Rect{}, lbb.WithBorder()),
-				lbb.NewButtonR("DoubleBoxFilter", lbl.Rect{}, lbb.WithBorder()),
-			},
-			sAmpScalar: lbs.NewSliderR("AmpScalar", lbl.Rect{},
-				lbs.WithBorder(),
-				lbs.WithInitProgress(uint8(255.0*min(float64(d.Sets.AmpScalar)/float64(MaxAmpScalar), 1.0))),
-			),
-			sHueRate: lbs.NewSliderR("HueRate", lbl.Rect{},
-				lbs.WithBorder(),
-				lbs.WithInitProgress(uint8((d.Sets.HueRate*10.0)*255.0)),
-			),
-			tiAmpScalar: lbti.NewTextInputR(tiAmpScalarTitle, lbl.Rect{},
-				lbti.WithBorder(),
-				lbti.WithInitText(fmt.Sprintf("%d", d.Sets.AmpScalar)),
-			),
-			tiHueRate: lbti.NewTextInputR(tiHueRateTitle, lbl.Rect{},
-				lbti.WithBorder(),
-				lbti.WithInitText(fmt.Sprintf("%.4f", d.Sets.HueRate)),
-			),
-			tiHost: lbti.NewTextInputR(tiHostTitle, lbl.Rect{},
-				lbti.WithBorder(),
-				lbti.WithInitText(d.Sets.Host),
-			),
-			tiPort: lbti.NewTextInputR(tiPortTitle, lbl.Rect{},
-				lbti.WithBorder(),
-				lbti.WithInitText(fmt.Sprintf("%d", d.Sets.Port)),
-			),
-			tiDecay: lbti.NewTextInputR(tiDecayTitle, lbl.Rect{},
-				lbti.WithBorder(),
-				lbti.WithInitText(fmt.Sprintf("%d", d.Sets.Decay)),
-			),
-			tiFilterRange: lbti.NewTextInputR(tiFilterRangeTitle, lbl.Rect{},
-				lbti.WithBorder(),
-				lbti.WithInitText(fmt.Sprintf("%d", d.Sets.FilterRange)),
-			),
+			ht:        lbht.InitHT(componentsSize),
+			errorText: lbti.Init("", lbti.WithTextColor(lb.Color(1))),
+
+			compsLen: componentsSize,
 		}
 	)
+
+	o.comps = []lbc.Component{
+		sAmpScalar: lbs.Init("AmpScalar",
+			lbs.WithBorder(),
+			lbs.WithInitProgress(uint8(255.0*min(float64(d.Sets.AmpScalar)/float64(MaxAmpScalar), 1.0))),
+			lbs.WithTrigger(wrapTrigger(o.handleSAmpScalar)),
+		),
+		sHueRate: lbs.Init("HueRate",
+			lbs.WithBorder(),
+			lbs.WithInitProgress(uint8((d.Sets.HueRate*10.0)*255.0)),
+			lbs.WithTrigger(wrapTrigger(o.handleSHueRate)),
+		),
+		tiAmpScalar: lbti.Init(tiAmpScalarTitle,
+			lbti.WithBorder(),
+			lbti.WithInitText(fmt.Sprintf("%d", d.Sets.AmpScalar)),
+			lbti.WithTrigger(o.handleTiAmpScalar),
+		),
+		tiHueRate: lbti.Init(tiHueRateTitle,
+			lbti.WithBorder(),
+			lbti.WithInitText(fmt.Sprintf("%.4f", d.Sets.HueRate)),
+			lbti.WithTrigger(o.handleTiHueRate),
+		),
+
+		// no trigger because we don't want reconnect try on each keypress
+		tiHost: lbti.Init(tiHostTitle,
+			lbti.WithBorder(),
+			lbti.WithInitText(d.Sets.Host),
+		),
+		tiPort: lbti.Init(tiPortTitle,
+			lbti.WithBorder(),
+			lbti.WithInitText(fmt.Sprintf("%d", d.Sets.Port)),
+		),
+
+		tiFilterRange: lbti.Init(tiFilterRangeTitle,
+			lbti.WithBorder(),
+			lbti.WithInitText(fmt.Sprintf("%d", d.Sets.FilterRange)),
+			lbti.WithTrigger(o.handleTiFilterRange),
+		),
+		tiDecay: lbti.Init(tiDecayTitle,
+			lbti.WithBorder(),
+			lbti.WithInitText(fmt.Sprintf("%d", d.Sets.Decay)),
+			lbti.WithTrigger(o.handleTiDecay),
+		),
+		bNoLeds: lbb.Init("NoLeds",
+			lbb.WithBorder(),
+			lbb.WithInitState(d.Sets.NoLeds),
+			lbb.WithTrigger(wrapTrigger(o.handleBNoLedsTrigger)),
+		),
+		bFillBins: lbb.Init("FillBins",
+			lbb.WithBorder(),
+			lbb.WithInitState(d.Sets.FillBins),
+			lbb.WithTrigger(wrapTrigger(o.handleBFillBinsTrigger)),
+		),
+		bSetBlack: lbb.Init("SetBlack",
+			lbb.WithBorder(),
+			lbb.WithTrigger(o.handleBSetBlackTrigger),
+		),
+
+		int(Last__) + int(ft.None):            lbb.Init("None", lbb.WithBorder(), lbb.WithTrigger(o.handleBFilterModes, ft.None)),
+		int(Last__) + int(ft.Block):           lbb.Init("Block", lbb.WithBorder(), lbb.WithTrigger(o.handleBFilterModes, ft.Block)),
+		int(Last__) + int(ft.BoxFilter):       lbb.Init("BoxFilter", lbb.WithBorder(), lbb.WithTrigger(o.handleBFilterModes, ft.BoxFilter)),
+		int(Last__) + int(ft.DoubleBoxFilter): lbb.Init("DoubleBoxFilter", lbb.WithBorder(), lbb.WithTrigger(o.handleBFilterModes, ft.DoubleBoxFilter)),
+	}
 
 	lbs.DecreaseKeys = []string{
 		"left", "h", "ctrl+b",
@@ -153,8 +157,8 @@ func Init(d uiData.UiData) *SettingsOverlay {
 	o.initBDevices()
 	o.setTriggers()
 
-	o.bFilterModes[int(o.d.Sets.FilterMode)].Press()
-	o.bDevices[o.d.Sets.DeviceIdx].Press()
+	castAsButton(o.comps[FilterModeButtonsOffset+int(o.d.Sets.FilterMode)]).Press()
+	castAsButton(o.comps[DeviceButtonsOffset+o.d.Sets.DeviceIdx]).Press()
 	return o
 }
 
@@ -229,44 +233,42 @@ func (o *SettingsOverlay) Resize(msg tea.WindowSizeMsg) {
 	o.minWidth = 3 + 3 + 3 + 3
 
 	// l 1 row
-	o.rects[sAmpScalar] = lRows[0]
+	o.comps[sAmpScalar].SetRect(lRows[0])
 
 	// l 2 row
-	o.rects[sHueRate] = lSecondRow[0]
-	o.rects[tiAmpScalar] = lSecondRow[2]
-	o.rects[tiHueRate] = lSecondRow[3]
+	o.comps[sHueRate].SetRect(lSecondRow[0])
+	o.comps[tiAmpScalar].SetRect(lSecondRow[2])
+	o.comps[tiHueRate].SetRect(lSecondRow[3])
 
 	// l 3 row
-	o.rects[tiHost] = lThirdRow[0]
-	o.rects[tiPort] = lThirdRow[2]
-	o.rects[tiFilterRange] = lThirdRow[3]
-	o.rects[tiDecay] = lThirdRow[4]
+	o.comps[tiHost].SetRect(lThirdRow[0])
+	o.comps[tiPort].SetRect(lThirdRow[2])
+	o.comps[tiFilterRange].SetRect(lThirdRow[3])
+	o.comps[tiDecay].SetRect(lThirdRow[4])
 
 	// l 4 row
-	o.rects[bNoLeds] = lFourthRow[0]
-	o.rects[bFillBins] = lFourthRow[1]
-	o.rects[bSetBlack] = lFourthRow[4]
+	o.comps[bNoLeds].SetRect(lFourthRow[0])
+	o.comps[bFillBins].SetRect(lFourthRow[1])
+	o.comps[bSetBlack].SetRect(lFourthRow[4])
 
 	// r
-	o.errorText.Rect = rRows[2]
+	o.errorText.SetRect(rRows[2])
 
 	// filter modes
 	for i := FilterModeButtonsOffset; i < DeviceButtonsOffset; i++ {
 		var r = lRows[4]
 		r.Height = 3
 		r.Y += uint16(i-FilterModeButtonsOffset) * 3
-		o.rects[i] = r
+		o.comps[i].SetRect(r)
 	}
 
 	// devices
-	for i := DeviceButtonsOffset; i < len(o.rects); i++ {
+	for i := DeviceButtonsOffset; i < o.compsLen; i++ {
 		var r = rRows[0]
 		r.Height = 3
 		r.Y += uint16(i-DeviceButtonsOffset) * 3
-		o.rects[i] = r
+		o.comps[i].SetRect(r)
 	}
-
-	o.updateRects()
 }
 
 func (o *SettingsOverlay) Update(msg tea.Msg) {
@@ -294,7 +296,7 @@ func (o *SettingsOverlay) Update(msg tea.Msg) {
 				o.handleFocusSwitchKbPrev()
 				return
 			case "f":
-				o.handleFocusSwitch(o.getComponentByIdx(o.focusedComponentKb))
+				o.handleFocusSwitch(o.comps[o.focusedComponentKb])
 				return
 			}
 		}
@@ -310,48 +312,18 @@ func (o *SettingsOverlay) Update(msg tea.Msg) {
 			return
 		}
 
-		key := msg.String()
-		o.tiAmpScalar.Update(key)
-		o.tiHueRate.Update(key)
-		o.tiHost.Update(key)
-		o.tiPort.Update(key)
-		o.tiFilterRange.Update(key)
-		o.tiDecay.Update(key)
-		if c, _ := o.sAmpScalar.Update(key); c {
-			o.handleSAmpScalar()
-		}
-		if c, _ := o.sHueRate.Update(key); c {
-			o.handleSHueRate()
-		}
-		if c, _ := o.bNoLeds.Update(key); c {
-			o.handleBNoLedsTrigger()
-		}
-		if c, _ := o.bFillBins.Update(key); c {
-			o.handleBFillBinsTrigger()
-		}
-		if c, _ := o.bSetBlack.Update(key); c {
-			o.handleBSetBlackTrigger()
-		}
-		for i := 0; i < DeviceButtonsOffset-FilterModeButtonsOffset; i++ {
-			if c, _ := o.bFilterModes[i].Update(key); c {
-				o.handleBFilterModes(ft.FilterType(i))
-			}
-		}
-
-		for i := 0; i < len(o.rects)-DeviceButtonsOffset; i++ {
-			if c, _ := o.bDevices[i].Update(key); c {
-				o.handleBDevices(i)
-			}
+		for i := 0; i < o.compsLen; i++ {
+			o.comps[i].Update(msg.String())
 		}
 	case tea.MouseMsg:
 		if msg.String() == "left release" {
 			return
 		}
 
-		o.sAmpScalar.UpdateMouseClick(msg.String(), msg.X, msg.Y, o.sAmpScalar.Rect)
-		o.sHueRate.UpdateMouseClick(msg.String(), msg.X, msg.Y, o.sHueRate.Rect)
+		castAsSlider(o.comps[sAmpScalar]).UpdateMouseClick(msg.String(), msg.X, msg.Y, o.comps[sAmpScalar].GetRect())
+		castAsSlider(o.comps[sHueRate]).UpdateMouseClick(msg.String(), msg.X, msg.Y, o.comps[sHueRate].GetRect())
 
-		err := o.ht.CheckHit(msg.X, msg.Y, o.rects[:])
+		err := o.ht.CheckHitOnComponents(msg.X, msg.Y, o.comps)
 		o.setErrorText(err)
 	}
 }
@@ -362,31 +334,12 @@ func (o SettingsOverlay) Render(fb *lbfb.FrameBuffer) {
 		return
 	}
 
-	fb.RenderString(o.sAmpScalar.View(), o.sAmpScalar.GetRect())
-	fb.RenderString(o.sHueRate.View(), o.sHueRate.GetRect())
-
-	fb.RenderString(o.tiAmpScalar.View(), o.tiAmpScalar.GetRect())
-	fb.RenderString(o.tiHueRate.View(), o.tiHueRate.GetRect())
-
-	fb.RenderString(o.bNoLeds.View(), o.bNoLeds.GetRect())
-	fb.RenderString(o.bFillBins.View(), o.bFillBins.GetRect())
-	fb.RenderString(o.bSetBlack.View(), o.bSetBlack.GetRect())
-
-	fb.RenderString(o.tiHost.View(), o.tiHost.Rect)
-	fb.RenderString(o.tiPort.View(), o.tiPort.Rect)
-	fb.RenderString(o.tiFilterRange.View(), o.tiFilterRange.Rect)
-	fb.RenderString(o.tiDecay.View(), o.tiDecay.Rect)
+	for i := 0; i < o.compsLen; i++ {
+		fb.RenderString(o.comps[i].View(), o.comps[i].GetRect())
+	}
 
 	if o.errorText.Text.Len() > 0 {
 		fb.RenderString(o.errorText.View(), o.errorText.Rect)
-	}
-
-	for i := 0; i < DeviceButtonsOffset-FilterModeButtonsOffset; i++ {
-		fb.RenderString(o.bFilterModes[i].View(), o.bFilterModes[i].GetRect())
-	}
-
-	for i := 0; i < len(o.rects)-DeviceButtonsOffset; i++ {
-		fb.RenderString(o.bDevices[i].View(), o.bDevices[i].GetRect())
 	}
 }
 

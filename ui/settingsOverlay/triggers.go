@@ -19,68 +19,37 @@ func wrapTrigger(c func()) func(any) error {
 	}
 }
 
-func wrapTriggerE(c func() error) func(any) error {
-	return func(any) error {
-		return c()
-	}
-}
-
-func wrapTriggerMultyE(c func(any) error, c2 func()) func(any) error {
-	return func(any) (err error) {
-		err = c(nil)
-		c2()
-		return
-	}
-}
-
 func (o *SettingsOverlay) setTriggers() {
-	for i := 0; i < len(o.rects); i++ {
-		if i >= DeviceButtonsOffset { // device buttons
-			o.ht.SetTrigger(i, func(any) error {
-				return o.handleBDevices(i - DeviceButtonsOffset)
-			})
+	for i := 0; i < o.compsLen; i++ {
+		if i > int(tiDecay) {
+			o.ht.SetTriggerFromComponent(i, o.comps[i])
 			continue
 		}
 
-		if i >= FilterModeButtonsOffset { // filtermode buttons
-			o.ht.SetTrigger(i, func(any) error {
-				o.handleBFilterModes(ft.FilterType(i - FilterModeButtonsOffset))
-				return nil
-			})
-			continue
-		}
-
-		if i < FilterModeButtonsOffset { // single rects from const vals
-			switch selectedRect(i) {
-			case bNoLeds:
-				o.ht.SetTrigger(i, wrapTrigger(o.handleBNoLedsTrigger))
-			case bFillBins:
-				o.ht.SetTrigger(i, wrapTrigger(o.handleBFillBinsTrigger))
-			case bSetBlack:
-				o.ht.SetTrigger(i, wrapTriggerE(o.handleBSetBlackTrigger))
-			case tiHost:
-				o.ht.SetTrigger(i, o.wrapFS(&o.tiHost))
-			case tiPort:
-				o.ht.SetTrigger(i, o.wrapFS(&o.tiPort))
-			case tiAmpScalar:
-				o.ht.SetTrigger(i, o.wrapFS(&o.tiAmpScalar))
-			case tiDecay:
-				o.ht.SetTrigger(i, o.wrapFS(&o.tiDecay))
-			case tiFilterRange:
-				o.ht.SetTrigger(i, o.wrapFS(&o.tiFilterRange))
-			case tiHueRate:
-				o.ht.SetTrigger(i, o.wrapFS(&o.tiHueRate))
-			case sAmpScalar:
-				o.ht.SetTrigger(i, wrapTriggerMultyE(o.wrapFS(&o.sAmpScalar), o.handleSAmpScalar))
-			case sHueRate:
-				o.ht.SetTrigger(i, wrapTriggerMultyE(o.wrapFS(&o.sHueRate), o.handleSHueRate))
-			}
+		// only switch focus
+		switch selectedRect(i) {
+		case tiHost:
+			o.ht.SetTrigger(i, o.wrapFS(o.comps[tiHost]))
+		case tiPort:
+			o.ht.SetTrigger(i, o.wrapFS(o.comps[tiPort]))
+		case tiAmpScalar:
+			o.ht.SetTrigger(i, o.wrapFS(o.comps[tiAmpScalar]))
+		case tiDecay:
+			o.ht.SetTrigger(i, o.wrapFS(o.comps[tiDecay]))
+		case tiFilterRange:
+			o.ht.SetTrigger(i, o.wrapFS(o.comps[tiFilterRange]))
+		case tiHueRate:
+			o.ht.SetTrigger(i, o.wrapFS(o.comps[tiHueRate]))
+		case sAmpScalar:
+			o.ht.SetTrigger(i, o.wrapFS(o.comps[sAmpScalar]))
+		case sHueRate:
+			o.ht.SetTrigger(i, o.wrapFS(o.comps[sHueRate]))
 		}
 	}
 }
 
-func (o *SettingsOverlay) handleTiHost() error {
-	o.d.Sets.Host = o.tiHost.GetText()
+func (o *SettingsOverlay) handleTiHost(any) error {
+	o.d.Sets.Host = castAsTi(o.comps[tiHost]).GetText()
 	newLed, err := led.InitLED(o.d.Sets.Host, o.d.Sets.Port)
 	if err != nil {
 		return err
@@ -90,8 +59,8 @@ func (o *SettingsOverlay) handleTiHost() error {
 	return nil
 }
 
-func (o *SettingsOverlay) handleTiPort() error {
-	n, err := o.tiPort.GetTextAsInt()
+func (o *SettingsOverlay) handleTiPort(any) error {
+	n, err := castAsTi(o.comps[tiPort]).GetTextAsInt()
 	if err != nil {
 		return err
 	}
@@ -107,8 +76,8 @@ func (o *SettingsOverlay) handleTiPort() error {
 	return nil
 }
 
-func (o *SettingsOverlay) handleTiFilterRange() error {
-	n, err := o.tiFilterRange.GetTextAsInt()
+func (o *SettingsOverlay) handleTiFilterRange(any) error {
+	n, err := castAsTi(o.comps[tiFilterRange]).GetTextAsInt()
 	if err != nil {
 		return err
 	}
@@ -116,8 +85,8 @@ func (o *SettingsOverlay) handleTiFilterRange() error {
 	return nil
 }
 
-func (o *SettingsOverlay) handleTiDecay() error {
-	n, err := o.tiDecay.GetTextAsInt()
+func (o *SettingsOverlay) handleTiDecay(any) error {
+	n, err := castAsTi(o.comps[tiDecay]).GetTextAsInt()
 	if err != nil {
 		return err
 	}
@@ -125,40 +94,56 @@ func (o *SettingsOverlay) handleTiDecay() error {
 	return nil
 }
 
-func (o *SettingsOverlay) handleTiHueRate() error {
-	f, err := o.tiHueRate.GetTextAsFloat()
+func (o *SettingsOverlay) handleTiHueRate(any) error {
+	ti := castAsTi(o.comps[tiHueRate])
+	s := castAsSlider(o.comps[sHueRate])
+
+	f, err := ti.GetTextAsFloat()
 	if err != nil {
 		return err
 	}
 	o.d.Sets.HueRate = f
-	o.sHueRate.SetRatio(uint8(255 * float64(f) * 10))
+	s.SetRatio(float64(f) * 10)
 	return nil
 }
 
-func (o *SettingsOverlay) handleTiAmpScalar() error {
-	i, err := o.tiAmpScalar.GetTextAsInt()
+func (o *SettingsOverlay) handleTiAmpScalar(any) error {
+	ti := castAsTi(o.comps[tiAmpScalar])
+	s := castAsSlider(o.comps[sAmpScalar])
+
+	i, err := ti.GetTextAsInt()
 	if err != nil {
 		return err
 	}
 	o.d.Sets.AmpScalar = i
-	o.sAmpScalar.SetRatio(uint8(255 * float64(i) / MaxAmpScalar))
+	s.SetRatio(float64(i) / MaxAmpScalar)
 	return nil
 }
 
 func (o *SettingsOverlay) handleSHueRate() {
-	o.d.Sets.HueRate = o.sHueRate.GetRatio() / 10
-	o.tiHueRate.SetText(fmt.Sprintf("%.4f", o.d.Sets.HueRate))
+	ti := castAsTi(o.comps[tiHueRate])
+	s := castAsSlider(o.comps[sHueRate])
+
+	o.d.Sets.HueRate = s.GetRatio() / 10
+	ti.SetText(fmt.Sprintf("%.4f", o.d.Sets.HueRate))
 }
 
 func (o *SettingsOverlay) handleSAmpScalar() {
-	o.d.Sets.AmpScalar = int(MaxAmpScalar * o.sAmpScalar.GetRatio())
-	o.tiAmpScalar.SetText(fmt.Sprintf("%d", o.d.Sets.AmpScalar))
+	ti := castAsTi(o.comps[tiAmpScalar])
+	s := castAsSlider(o.comps[sAmpScalar])
+
+	o.d.Sets.AmpScalar = int(MaxAmpScalar * s.GetRatio())
+	ti.SetText(fmt.Sprintf("%d", o.d.Sets.AmpScalar))
 }
 
-func (o *SettingsOverlay) handleBDevices(devIdx int) error {
-	o.bDevices[o.d.Sets.DeviceIdx].Depress()
+func (o *SettingsOverlay) handleBDevices(a any) error {
+	devIdx := a.(int)
+	bPrev := castAsButton(o.comps[DeviceButtonsOffset+o.d.Sets.DeviceIdx])
+	bCurr := castAsButton(o.comps[DeviceButtonsOffset+devIdx])
+
+	bPrev.Depress()
 	o.d.Sets.DeviceIdx = devIdx
-	o.bDevices[o.d.Sets.DeviceIdx].Press()
+	bCurr.Press()
 
 	err := o.d.Audio.ReinitDevice(o.d.Sets.DeviceIdx)
 
@@ -170,30 +155,40 @@ func (o *SettingsOverlay) handleBDevices(devIdx int) error {
 	return nil
 }
 
-func (o *SettingsOverlay) handleBFilterModes(filterT ft.FilterType) {
-	o.bFilterModes[int(o.d.Sets.FilterMode)].Depress()
+func (o *SettingsOverlay) handleBFilterModes(a any) error {
+	filterT, ok := a.(ft.FilterType)
+	if !ok {
+		panic(fmt.Sprintf("not ok, v: %V", a))
+	}
+	bPrev := castAsButton(o.comps[FilterModeButtonsOffset+int(o.d.Sets.FilterMode)])
+	bCurr := castAsButton(o.comps[FilterModeButtonsOffset+int(filterT)])
+
+	bPrev.Depress()
 	o.d.Sets.FilterMode = filterT
-	o.bFilterModes[int(o.d.Sets.FilterMode)].Press()
+	bCurr.Press()
+	return nil
 }
 
 func (o *SettingsOverlay) handleBNoLedsTrigger() {
 	o.d.Sets.NoLeds = !o.d.Sets.NoLeds
-	o.bNoLeds.Pressed = o.d.Sets.NoLeds
+	castAsButton(o.comps[bNoLeds]).Pressed = o.d.Sets.NoLeds
 }
 
 func (o *SettingsOverlay) handleBFillBinsTrigger() {
 	o.d.Sets.FillBins = !o.d.Sets.FillBins
-	o.bFillBins.Pressed = o.d.Sets.FillBins
+	castAsButton(o.comps[bFillBins]).Pressed = o.d.Sets.FillBins
 }
 
-func (o *SettingsOverlay) handleBSetBlackTrigger() error {
+func (o *SettingsOverlay) handleBSetBlackTrigger(any) error {
 	err := o.d.Led.SetAllLEDsToColor(0, 0, 0)
 	if err != nil {
 		return err
 	}
-	o.bSetBlack.Press()
+	b := castAsButton(o.comps[bSetBlack])
+
+	b.Press()
 	go timedAction(time.Millisecond*200, func() {
-		o.bSetBlack.Depress()
+		b.Depress()
 	})
 	return nil
 }

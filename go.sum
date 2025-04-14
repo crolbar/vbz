@@ -8,8 +8,12 @@ github.com/charmbracelet/x/ansi v0.8.0 h1:9GTq3xq9caJW8ZrBTe0LIe2fvfLR/bYXKTx2ll
 github.com/charmbracelet/x/ansi v0.8.0/go.mod h1:wdYl/ONOLHLIVmQaxbIYEC/cRKOQyjTkowiI4blgS9Q=
 github.com/charmbracelet/x/term v0.2.1 h1:AQeHeLZ1OqSXhrAWpYUtZyX1T3zVxfpZuEQMIQaGIAQ=
 github.com/charmbracelet/x/term v0.2.1/go.mod h1:oQ4enTYFV7QN4m0i9mzHrViD7TQKvNEEkHUMCmsxdUg=
-github.com/crolbar/lipbalm v0.0.0-20250413173605-9bf7ee88db4f h1:PQvsRNetqp2OSpYPzE/jMJ97JVXKwaXo23wEpKrlQ4E=
-github.com/crolbar/lipbalm v0.0.0-20250413173605-9bf7ee88db4f/go.mod h1:dkUpl3drCxsoS80YX0Ny2rRGodaYrRMcqKxmDPm+tJc=
+github.com/crolbar/lipbalm v0.0.0-20250414083552-916e25c2bfef h1:865ghigX/nWDD35bsBPrmk/CUPsMoH/Po/yqJ3lP5/8=
+github.com/crolbar/lipbalm v0.0.0-20250414083552-916e25c2bfef/go.mod h1:dkUpl3drCxsoS80YX0Ny2rRGodaYrRMcqKxmDPm+tJc=
+github.com/crolbar/lipbalm v0.0.0-20250414084920-11c3e16f8162 h1:1J4A20MV0n2Q3rnp9UflFMc8095CTTKb3H2mfyXbqoQ=
+github.com/crolbar/lipbalm v0.0.0-20250414084920-11c3e16f8162/go.mod h1:dkUpl3drCxsoS80YX0Ny2rRGodaYrRMcqKxmDPm+tJc=
+github.com/crolbar/lipbalm v0.0.0-20250414094912-5b93d85791b2 h1:Kjc5Q5pjvAbtMnZTzkucDH4EeFdz6ASPS4fdIMY3sb0=
+github.com/crolbar/lipbalm v0.0.0-20250414094912-5b93d85791b2/go.mod h1:dkUpl3drCxsoS80YX0Ny2rRGodaYrRMcqKxmDPm+tJc=
 github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f h1:Y/CXytFA4m6baUTXGLOoWe4PQhGxaX0KpnayAqC48p4=
 github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f/go.mod h1:vw97MGsxSvLiUE2X8qFplwetxpGLQrlU1Q9AUEIzCaM=
 github.com/gen2brain/malgo v0.11.23 h1:3/VAI8DP9/Wyx1CUDNlUQJVdWUvGErhjHDqYcHVk9ME=
