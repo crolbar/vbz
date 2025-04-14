@@ -11,13 +11,25 @@ import (
 func getMappingKeyFromAlias(alias string) (o string) {
 	alias = strings.ToLower(alias)
 	switch alias {
-	case "amp-scalar":
+	case "ampscalar", "amp-scalar":
 		o = "AmpScalar"
 	case "deviceidx", "device-idx":
 		o = "DeviceIdx"
-	case "-d":
-		o = "--device-idx"
+	case "host":
+		o = "Host"
 	case "port":
+		o = "Port"
+	case "fillbins", "fill-bins":
+		o = "FillBins"
+	case "huerate", "hue-rate":
+		o = "HueRate"
+	case "filterrange", "filter-range":
+		o = "FilterRange"
+	case "filtermode", "filter-mode":
+		o = "FilterMode"
+	case "decay":
+		o = "Decay"
+	case "-d":
 		o = "--device-idx"
 	}
 
@@ -74,7 +86,6 @@ func kebabToPascal(s string) string {
 
 	return sb.String()
 }
-
 
 func getFieldPointer(s *Settings, field string) any {
 	structVal := reflect.ValueOf(s)
