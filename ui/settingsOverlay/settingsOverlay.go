@@ -37,12 +37,15 @@ const (
 type SettingsOverlay struct {
 	d uiData.UiData
 
+	deviceNames []string
+
 	comps    []lbc.Component
 	compsLen int
 
 	errorText *lbti.TextInput
 
-	focusedComponent   lbc.Component
+	focusedComponent lbc.Component
+	// TODO something better ?
 	focusedComponentKb int
 
 	ht lbht.HitTesting
@@ -179,7 +182,7 @@ func (o *SettingsOverlay) Resize(msg tea.WindowSizeMsg) {
 				lbl.NewConstrain(lbl.Percent, 50),
 			).Split(rect)
 
-		filterRowHeight = 3 * int(ft.Last__)
+		filterRowHeight = 3*int(ft.Last__) + 1
 
 		lRows = l.Vercital().
 			Constrains(
@@ -268,6 +271,7 @@ func (o *SettingsOverlay) Resize(msg tea.WindowSizeMsg) {
 		r.Height = 3
 		r.Y += uint16(i-DeviceButtonsOffset) * 3
 		o.comps[i].SetRect(r)
+		o.shortenBDevicesNames(int(r.Width) - 2)
 	}
 }
 
@@ -334,8 +338,53 @@ func (o SettingsOverlay) Render(fb *lbfb.FrameBuffer) {
 		return
 	}
 
-	for i := 0; i < o.compsLen; i++ {
+	// settings setters
+	for i := 0; i < FilterModeButtonsOffset; i++ {
 		fb.RenderString(o.comps[i].View(), o.comps[i].GetRect())
+	}
+
+	// filter modes
+	for i := FilterModeButtonsOffset; i < DeviceButtonsOffset; i++ {
+		filters := ""
+		filtersRect := o.comps[FilterModeButtonsOffset].GetRect()
+		filtersRect.Height *= uint16(o.d.Audio.NumDevices)
+		for i := FilterModeButtonsOffset; i < DeviceButtonsOffset; i++ {
+			if filters == "" {
+				filters = o.comps[i].View()
+			} else {
+				filters = lb.JoinVertical(lb.Left, filters, o.comps[i].View())
+			}
+		}
+
+		fb.RenderString(
+			lb.Border(lb.NormalBorder(
+				lb.WithTextBottom(
+					lb.SetColor(lb.Color(135), "Avg Filter Modes"),
+					lb.Center),
+			), filters, true, true, false, true),
+			filtersRect)
+	}
+
+	// devices
+	{
+		devices := ""
+		devicesRect := o.comps[DeviceButtonsOffset].GetRect()
+		devicesRect.Height *= uint16(o.d.Audio.NumDevices)
+		for i := DeviceButtonsOffset; i < o.compsLen; i++ {
+			if devices == "" {
+				devices = o.comps[i].View()
+			} else {
+				devices = lb.JoinVertical(lb.Left, devices, o.comps[i].View())
+			}
+		}
+
+		fb.RenderString(
+			lb.Border(lb.NormalBorder(
+				lb.WithTextBottom(
+					lb.SetColor(lb.Color(135), "Capture Devices"),
+					lb.Center),
+			), devices, true, true, false, true),
+			devicesRect)
 	}
 
 	if o.errorText.Text.Len() > 0 {
