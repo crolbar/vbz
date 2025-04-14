@@ -1,9 +1,30 @@
 package settings
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	ft "vbz/fft/filter_types"
 )
+
+func parseConfigPathArg() (path string, err error) {
+	for i := 0; i < len(os.Args); i++ {
+		switch os.Args[i] {
+		case "--config", "-c":
+			if i+1 >= len(os.Args) {
+				err = errors.New(
+					fmt.Sprintf("params to %s not enough, view --help", os.Args[i]),
+				)
+				break
+			}
+
+			path = os.Args[i+1]
+			break
+		}
+	}
+
+	return
+}
 
 func (s *Settings) ParseEarlyArgs() error {
 	var (

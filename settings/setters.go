@@ -11,10 +11,6 @@ import (
 type setIntConfigType = func(field *int, val string, lineNumber int) error
 
 func setIntConfig(field *int, val string, lineNumber int) error {
-	if *field != -1 {
-		return nil
-	}
-
 	num, err := strconv.Atoi(val)
 	if err != nil {
 		return errors.New(fmt.Sprintf("error while parsing int at line: %d", lineNumber))
@@ -45,10 +41,6 @@ func setIntArgs(field *int, argIdx int, argKey string) error {
 type setStringConfigType = func(field *string, val string)
 
 func setStringConfig(field *string, val string) {
-	if *field != "-1" {
-		return
-	}
-
 	*field = val
 }
 
@@ -96,10 +88,6 @@ func setBoolFalseArgs(field *bool) {
 type setFloatConfigType = func(field *float64, val string, lineNumber int) error
 
 func setFloatConfig(field *float64, val string, lineNumber int) error {
-	if *field != -1.0 {
-		return nil
-	}
-
 	num, err := strconv.ParseFloat(val, 64)
 	if err != nil {
 		return errors.New(fmt.Sprintf("error while parsing float64 at line: %d", lineNumber))
@@ -130,10 +118,6 @@ func setFloatArgs(field *float64, argIdx int, argKey string) error {
 type setFilterModeConfigType = func(field *ft.FilterType, val string, lineNumber int) error
 
 func setFilterModeConfig(field *ft.FilterType, val string, lineNumber int) error {
-	if *field != -1.0 {
-		return nil
-	}
-
 	switch val {
 	case "None":
 		*field = ft.None

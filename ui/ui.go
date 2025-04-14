@@ -59,7 +59,7 @@ func InitUi(
 		fb: lbfb.NewFrameBuffer(0, 0),
 
 		selTab:      tab.Master,
-		showOverlay: true,
+		showOverlay: false,
 	}
 
 	u.SettingsOverlay = settingsOverlay.Init(u.d)

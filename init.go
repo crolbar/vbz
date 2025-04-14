@@ -27,28 +27,9 @@ func initVBZ() (VBZ, error) {
 			LastBeat:   time.Time{},
 			HasBeat:    false,
 		},
-		settings: &settings.Settings{ // TODO FIX THESE -1s
-			DeviceIdx:   -1,
-			Port:        -1,
-			Host:        "-1",
-			Debug:       false,
-			HueRate:     -1.0,
-			AmpScalar:   -1,
-			FilterRange: -1,
-			FilterMode:  -1,
-			Decay:       -1,
-		},
-		hues: hues.InitHues(),
-		p:    tea.NewProgram(VBZ{}),
-	}
-
-	// cli arguments
-	err = vbz.settings.ParseEarlyArgs()
-	if err != nil {
-		return VBZ{}, err
-	}
-	if vbz.shouldNotEnterTui {
-		return vbz, nil
+		settings: &settings.DefaultSettings,
+		hues:     hues.InitHues(),
+		p:        tea.NewProgram(VBZ{}),
 	}
 
 	// config file & defaults
@@ -57,6 +38,12 @@ func initVBZ() (VBZ, error) {
 		return VBZ{}, errors.New(fmt.Sprintf("Error seting settings: %s", err.Error()))
 	}
 	vbz.fft.SetSettingsPtr(vbz.settings)
+
+	// cli arguments
+	err = vbz.settings.ParseEarlyArgs()
+	if err != nil {
+		return VBZ{}, err
+	}
 
 	// openrgb connection
 	if !vbz.settings.NoOpenRgb {

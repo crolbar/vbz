@@ -24,8 +24,6 @@ type Settings struct {
 	FilterMode  ft.FilterType // avg mode applied to the fft
 	FilterRange int           // range of the avg mode
 	Decay       int           // % at which the magnitute drops a tick
-
-	Config string // config path
 }
 
 var DefaultSettings Settings = Settings{
@@ -57,7 +55,6 @@ var fieldMapping = map[string]interface{}{
 	"Decay":       setIntConfig,
 
 	// cli args
-	"--config":       setStringArgs,
 	"--device-idx":   setIntArgs,
 	"--host":         setStringArgs,
 	"--port":         setIntArgs,
@@ -74,43 +71,16 @@ var fieldMapping = map[string]interface{}{
 
 func (s *Settings) InitSettings() error {
 	var err error
-	if s.Config == "" {
-		err = s.getSettingsDefaultPath()
-	} else {
-		err = s.getSettings(s.Config)
-	}
+	cfgPath, err := parseConfigPathArg()
 	if err != nil {
 		return err
 	}
 
-	// VERY BAD SOLUTION FIX THIS !!
-	// set uninited values to default
-	if s.DeviceIdx == -1 {
-		s.DeviceIdx = DefaultSettings.DeviceIdx
-	}
-	if s.Port == -1 {
-		s.Port = DefaultSettings.Port
-	}
-	if s.Host == "-1" {
-		s.Host = DefaultSettings.Host
-	}
-	if s.HueRate == -1.0 {
-		s.HueRate = DefaultSettings.HueRate
-	}
-	if s.AmpScalar == -1.0 {
-		s.AmpScalar = DefaultSettings.AmpScalar
-	}
-	if s.FilterRange == -1.0 {
-		s.FilterRange = DefaultSettings.FilterRange
-	}
-	if s.FilterMode == -1.0 {
-		s.FilterMode = DefaultSettings.FilterMode
-	}
-	if s.Decay == -1.0 {
-		s.Decay = DefaultSettings.Decay
+	if cfgPath == "" {
+		return s.getSettingsDefaultPath()
 	}
 
-	return nil
+	return s.getSettings(cfgPath)
 }
 
 func (s *Settings) getSettingsDefaultPath() error {

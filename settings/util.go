@@ -18,7 +18,7 @@ func getMappingKeyFromAlias(alias string) (o string) {
 	case "-d":
 		o = "--device-idx"
 	case "port":
-		o = "Port"
+		o = "--device-idx"
 	}
 
 	return
