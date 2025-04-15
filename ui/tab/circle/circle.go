@@ -2,6 +2,7 @@ package circle
 
 import (
 	"math"
+	"vbz/hues"
 	"vbz/ui/uiData"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -25,6 +26,10 @@ func (c Circle) Render(fb *lbfb.FrameBuffer) {
 	c.RenderIn(fb, fb.Size())
 }
 
+const stepSize = 0.01
+
+var ringChars = []string{"•", "◌", "○", "◎", "●"}
+
 func (c Circle) RenderIn(fb *lbfb.FrameBuffer, rect lbl.Rect) {
 	bins := c.d.Fft.Bins
 	sum := 0.0
@@ -32,8 +37,9 @@ func (c Circle) RenderIn(fb *lbfb.FrameBuffer, rect lbl.Rect) {
 	for i := 0; i < int(n); i++ {
 		sum += bins[i]
 	}
-
 	amp := sum / n
+
+	lamp := c.d.Fft.PeakLowAmp
 
 	var (
 		w = int(rect.Width)
@@ -42,41 +48,52 @@ func (c Circle) RenderIn(fb *lbfb.FrameBuffer, rect lbl.Rect) {
 		cy = (h / 2) + int(rect.Y)
 		cx = (w / 2) + int(rect.X)
 
-		r  = float64(h/2) - amp
-		r2 = float64(h/2-7) - amp
+		m = min(w, h)
+
+		r  = float64(m / 2)
+		r2 = float64(m/2 - 7)
+
+		tickC = c.d.FrameData.TickCount
 	)
 
-	stepSize := 0.01
+	c.renderCircle(fb, cx, cy, r*lamp, int(tickC)*3, rect)
+	c.renderCircle(fb, cx, cy, r2*amp, int(tickC)*-2, rect)
+}
 
-	ringChars := []string{"•", "◦", "○", "◎", "●"}
+func (c Circle) renderCircle(
+	fb *lbfb.FrameBuffer,
+	cx int,
+	cy int,
+	r float64,
+	tickC int,
+	rect lbl.Rect,
+) {
+	var (
+		w = int(rect.Width)
+		h = int(rect.Height)
+	)
 
 	for i := 0.0; i < 2*math.Pi; i += stepSize {
-		x := cx + int((r*amp)*math.Cos(i)*2.2)
-		y := cy + int((r*amp)*math.Sin(i))
+		x := cx + int(r*math.Cos(i)*2)
+		y := cy + int(r*math.Sin(i))
 
-		charIndex := int(math.Sin(i+float64(c.d.TickCount*3))*2+2) % len(ringChars)
-		colorIndex := int(i*30+i*20) + int(c.d.TickCount)*3
-		color := lb.Color(uint8(16 + (colorIndex % 216)))
+		charIndex := int(math.Sin(i+float64(tickC)*(c.d.Sets.HueRate*8))*4+4) % len(ringChars)
+		hueIdx := int(math.Abs(math.Sin(i+float64(tickC)*c.d.Sets.HueRate))*63) % 64
+		color := lb.ColorRGB(
+			hues.HSVtoRGB(
+				c.d.Hues.PrevFHues[hueIdx],
+				1,
+				float64(charIndex)/4+0.3,
+			),
+		)
 
 		if x < 0 && x >= w && y < 0 && y >= h {
 			continue
 		}
 
-		fb.RenderString(lb.SetColor(color, ringChars[charIndex]), lbl.NewRect(uint16(x), uint16(y), 1, 1))
-	}
-
-	for i := 0.0; i < 2*math.Pi; i += stepSize {
-		x := cx + int((r2*amp)*math.Cos(i)*2.2)
-		y := cy + int((r2*amp)*math.Sin(i))
-
-		charIndex := int(math.Sin(i+float64(int(c.d.TickCount)*-2))*4+4) % len(ringChars)
-		colorIndex := int(i*35+i*15) + int(c.d.TickCount)*-2
-		color := lb.Color(uint8(16 + (colorIndex % 216)))
-
-		if x < 0 && x >= w && y < 0 && y >= h {
-			continue
-		}
-
-		fb.RenderString(lb.SetColor(color, ringChars[charIndex]), lbl.NewRect(uint16(x), uint16(y), 1, 1))
+		fb.RenderString(
+			lb.SetColor(color, ringChars[charIndex]),
+			lbl.NewRect(uint16(x), uint16(y), 1, 1),
+		)
 	}
 }

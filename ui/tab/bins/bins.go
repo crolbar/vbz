@@ -81,7 +81,7 @@ func (b Bins) RenderIn(fb *lbfb.FrameBuffer, rect lbl.Rect) {
 
 	// fill the black spots at left & right
 	if startX != 0 && b.d.Sets.FillBins {
-		b.applyFillToBins(fb, startX, binMaxHeight, binWidth, peakLow, binF, w, h)
+		b.applyFillToBins(fb, startX, binMaxHeight, binWidth, peakLow, binF, w, h, rect.Y)
 	}
 }
 
@@ -94,6 +94,7 @@ func (b Bins) applyFillToBins(
 	binF string,
 	w int,
 	h int,
+	y uint16,
 ) {
 	var (
 		fill     = strings.Repeat(" \n", h)
@@ -108,7 +109,7 @@ func (b Bins) applyFillToBins(
 	// left
 	for i := startX; i >= 0; i-- {
 		hue = math.Mod(hue-binHueDiff+1.0, 1)
-		fb.RenderString(lb.SetColor(lb.ColorBgRGB(hues.HSVtoRGB(hue, 1, peakLow*0.7)), fill), lbl.NewRect(uint16(i), 0, 1, uint16(h)))
+		fb.RenderString(lb.SetColor(lb.ColorBgRGB(hues.HSVtoRGB(hue, 1, peakLow*0.7)), fill), lbl.NewRect(uint16(i), y, 1, uint16(h)))
 
 		var (
 			barIdx    = startX - i
@@ -119,7 +120,7 @@ func (b Bins) applyFillToBins(
 
 		fb.RenderString(
 			lb.SetColor(lb.ColorBgRGB(hues.HSVtoRGB(b.d.Hues.PrevFHues[barIdx], 1, 1)), bar),
-			lbl.NewRect(uint16(i), uint16(h-barHeight), uint16(binWidth), uint16(barHeight)),
+			lbl.NewRect(uint16(i), y+uint16(h-barHeight), uint16(binWidth), uint16(barHeight)),
 		)
 	}
 
@@ -127,7 +128,7 @@ func (b Bins) applyFillToBins(
 	hue = lastHue
 	for i := w - startX - 1; i < w; i++ {
 		hue = math.Mod(hue+binHueDiff+1.0, 1)
-		fb.RenderString(lb.SetColor(lb.ColorBgRGB(hues.HSVtoRGB(hue, 1, peakLow*0.7)), fill), lbl.NewRect(uint16(i), 0, 1, uint16(h)))
+		fb.RenderString(lb.SetColor(lb.ColorBgRGB(hues.HSVtoRGB(hue, 1, peakLow*0.7)), fill), lbl.NewRect(uint16(i), y, 1, uint16(h)))
 
 		var (
 			barIdx    = fft.BINS_SIZE - 1 - (i - (w - startX - 1))
@@ -138,7 +139,7 @@ func (b Bins) applyFillToBins(
 
 		fb.RenderString(
 			lb.SetColor(lb.ColorBgRGB(hues.HSVtoRGB(b.d.Hues.PrevFHues[barIdx], 1, 1)), bar),
-			lbl.NewRect(uint16(i), uint16(h-barHeight), uint16(binWidth), uint16(barHeight)),
+			lbl.NewRect(uint16(i), y+uint16(h-barHeight), uint16(binWidth), uint16(barHeight)),
 		)
 	}
 }

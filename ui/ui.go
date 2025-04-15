@@ -52,9 +52,11 @@ func InitUi(
 			Led:   led,
 			Audio: audio,
 
-			TickCount:    0,
-			LastTickTime: time.Time{},
-			FPS:          0,
+			FrameData: &uiData.FrameData{
+				TickCount:    0,
+				LastTickTime: time.Time{},
+				FPS:          0,
+			},
 		},
 
 		fb: lbfb.NewFrameBuffer(0, 0),
@@ -100,11 +102,11 @@ func (ui *Ui) Update(msg tea.Msg) tea.Cmd {
 	ui.SelTab().Update(msg)
 
 	if ui.PreView() {
-		ui.d.TickCount++
+		ui.d.FrameData.TickCount++
 		now := time.Now()
-		frameTime := now.Sub(ui.d.LastTickTime)
-		ui.d.LastTickTime = now
-		ui.d.FPS = int(time.Second / frameTime)
+		frameTime := now.Sub(ui.d.FrameData.LastTickTime)
+		ui.d.FrameData.LastTickTime = now
+		ui.d.FrameData.FPS = int(time.Second / frameTime)
 	}
 
 	return nil

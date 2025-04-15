@@ -18,6 +18,10 @@ type UiData struct {
 	Led   *led.LED
 	Audio *audioCapture.AudioCapture
 
+	FrameData *FrameData
+}
+
+type FrameData struct {
 	TickCount    uint
 	LastTickTime time.Time
 	FPS          int

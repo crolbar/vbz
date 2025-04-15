@@ -33,25 +33,41 @@ func (m *Master) Update(msg tea.Msg) {
 		switch msg.String() {
 		}
 	}
-
 }
 
+var l = lbl.DefaultLayout()
+
 func (m Master) Render(fb *lbfb.FrameBuffer) {
-	m.b.RenderIn(fb, fb.Size())
-	m.c.RenderIn(fb, fb.Size())
+	var (
+		rows = l.Vercital().
+			Constrains(
+				lbl.NewConstrain(lbl.Length, 1),
+				lbl.NewConstrain(lbl.Length, 1),
+				lbl.NewConstrain(lbl.Percent, 65),
+				lbl.NewConstrain(lbl.Percent, 35),
+			).Split(fb.Size())
+
+		cols = l.Horizontal().
+			Constrains(
+				lbl.NewConstrain(lbl.Min, 0),
+				lbl.NewConstrain(lbl.Percent, 25),
+				lbl.NewConstrain(lbl.Min, 0),
+				lbl.NewConstrain(lbl.Percent, 50),
+				lbl.NewConstrain(lbl.Min, 0),
+				lbl.NewConstrain(lbl.Percent, 25),
+				lbl.NewConstrain(lbl.Min, 0),
+			).Split(rows[2])
+	)
 
 	fb.RenderString(
 		lb.SetColor(lb.Color(1), lb.ExpandHorizontal(int(fb.Size().Width), lb.Center, "master")),
-		lbl.NewRect(0, 0, fb.Size().Width, 1),
+		rows[0],
 	)
 
-	var (
-	// v = lbl.DefaultLayout().Vercital().
-	// 	Constrains(
-	// 		lbl.NewConstrain(lbl.Percent, 50),
-	// 		lbl.NewConstrain(lbl.Percent, 50),
-	// 	).Split(fb.Size())
-	)
+	fb.RenderString(m.d.Sets.Host, rows[1], lb.Center)
+
+	m.c.RenderIn(fb, cols[3])
+	m.b.RenderIn(fb, rows[3])
 }
 
 func (m Master) RenderIn(fb *lbfb.FrameBuffer, rect lbl.Rect) {}

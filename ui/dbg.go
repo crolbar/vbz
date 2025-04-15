@@ -17,7 +17,7 @@ func (ui Ui) renderDebug() {
 	)
 
 	_v := []string{
-		fmt.Sprintf("fps: %d", ui.d.FPS),
+		fmt.Sprintf("fps: %d", ui.d.FrameData.FPS),
 		fmt.Sprintf("w: %d, h: %d", w, h),
 		fmt.Sprintf("port: %d", ui.d.Sets.Port),
 		fmt.Sprintf("dev: %d", ui.d.Sets.DeviceIdx),
