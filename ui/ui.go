@@ -25,7 +25,8 @@ type Ui struct {
 	Width  int
 	Height int
 
-	fb lbfb.FrameBuffer
+	fb       lbfb.FrameBuffer
+	cachedFb string
 
 	tabs   [tab.Last__]tab.Tab
 	selTab tab.TabType
@@ -98,11 +99,13 @@ func (ui *Ui) Update(msg tea.Msg) tea.Cmd {
 
 	ui.SelTab().Update(msg)
 
-	ui.d.TickCount++
-	now := time.Now()
-	frameTime := now.Sub(ui.d.LastTickTime)
-	ui.d.LastTickTime = now
-	ui.d.FPS = int(time.Second / frameTime)
+	if ui.PreView() {
+		ui.d.TickCount++
+		now := time.Now()
+		frameTime := now.Sub(ui.d.LastTickTime)
+		ui.d.LastTickTime = now
+		ui.d.FPS = int(time.Second / frameTime)
+	}
 
 	return nil
 }
@@ -120,13 +123,21 @@ func (ui *Ui) SelTab() tab.Tab {
 	return ui.tabs[ui.selTab]
 }
 
-func (ui Ui) View() string {
+func (ui *Ui) PreView() (c bool) {
 	if ui.Width == 0 || ui.Height == 0 {
-		return ""
+		ui.cachedFb = ""
+		return
 	}
 	if len(ui.d.Fft.Bins) == 0 {
-		return "no fft bins"
+		ui.cachedFb = "no fft bins"
+		return
 	}
+
+	if ui.d.Fft.PeakAmp != 0 && !ui.d.Fft.IsBinsUpdated() {
+		return
+	}
+
+	copy(ui.d.Fft.PrevBins[:], ui.d.Fft.Bins)
 
 	ui.fb.Clear()
 
@@ -140,5 +151,10 @@ func (ui Ui) View() string {
 		ui.renderDebug()
 	}
 
-	return ui.fb.View()
+	ui.cachedFb = ui.fb.View()
+	return true
+}
+
+func (ui Ui) View() string {
+	return ui.cachedFb
 }

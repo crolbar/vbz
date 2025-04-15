@@ -16,9 +16,13 @@ const BUFFER_SIZE = 256
 const BINS_SIZE = 256 / 4
 
 type FFT struct {
-	Bins       []float64
+	Bins []float64
+
+	// used for check if rerender is needed
+	PrevBins   [BINS_SIZE]float64
 	s          *settings.Settings
 	PeakLowAmp float64
+	PeakAmp float64
 }
 
 var DefaultFFT FFT = FFT{
@@ -130,17 +134,34 @@ func (f *FFT) UpdateFFT(samples []uint8) {
 	f.filterFFT()
 }
 
-func (f *FFT) UpdatePeakLowAmp() {
+func (f *FFT) UpdatePeakAmps() {
 	peakLow := 0.0
+	peak := 0.0
 	for i, mag := range f.Bins {
+		if mag > float64(peak) {
+			peak = mag
+		}
 		if i > 5 {
-			break
+			continue
 		}
 		if mag > float64(peakLow) {
 			peakLow = mag
 		}
 	}
 	f.PeakLowAmp = peakLow
+	f.PeakAmp = peak
+}
+
+func (f *FFT) IsBinsUpdated() bool {
+	if len(f.PrevBins) == 0 {
+		return true
+	}
+	for i := 0; i < BINS_SIZE; i++ {
+		if f.Bins[i] != f.PrevBins[i] {
+			return true
+		}
+	}
+	return false
 }
 
 func convToCFloatArray(a [BUFFER_SIZE]float64) *C.float {

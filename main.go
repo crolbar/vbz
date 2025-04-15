@@ -87,7 +87,7 @@ func (v *VBZ) onData() malgo.DataProc {
 	return func(pOutputSample, pInputSamples []byte, frameCount uint32) {
 		samples, _ := byteToU8(pInputSamples)
 		v.fft.UpdateFFT(samples)
-		v.fft.UpdatePeakLowAmp()
+		v.fft.UpdatePeakAmps()
 		v.bpm.UpdateBPM(samples)
 		v.hues.UpdateHues(v.settings.HueRate, v.bpm.Bpm)
 
