@@ -55,6 +55,10 @@ func main() {
 	if vbz.led.Conn != nil {
 		vbz.led.Conn.Close()
 	}
+	if vbz.audio.Ctx != nil {
+		_ = vbz.audio.Ctx.Uninit()
+		vbz.audio.Ctx.Free()
+	}
 }
 
 func (v VBZ) Init() tea.Cmd {

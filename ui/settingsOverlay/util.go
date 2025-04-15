@@ -17,7 +17,7 @@ func (o *SettingsOverlay) setErrorText(err error) {
 }
 
 func (o *SettingsOverlay) initBDevices() {
-	_, devices, _ := audioCapture.GetDevices()
+	devices, _ := audioCapture.GetDevices(o.d.Audio.Ctx)
 	for i := 0; i < o.d.Audio.NumDevices; i++ {
 		name := devices[i].Name()
 		o.deviceNames = append(o.deviceNames, name)

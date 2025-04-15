@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"time"
-	"vbz/audioCapture"
 )
 
 type Refresh struct{}
@@ -46,7 +45,7 @@ func (v *VBZ) parseLateArgs() error {
 			v.shouldNotEnterTui = true
 
 		case "--list-devices", "-l":
-			audioCapture.PrintDevices()
+			v.audio.PrintDevices()
 			v.shouldNotEnterTui = true
 
 		case "--set-color":

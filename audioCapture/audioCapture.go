@@ -9,6 +9,7 @@ import (
 )
 
 type AudioCapture struct {
+	Ctx *malgo.AllocatedContext
 	Dev *malgo.Device
 
 	NumDevices      int
@@ -18,12 +19,19 @@ type AudioCapture struct {
 }
 
 func InitAudioCapture(devIdx int, bufferSize int, sampleRate float64, cb malgo.DataProc) (AudioCapture, error) {
-	device, numDevices, err := InitDevice(devIdx, bufferSize, sampleRate, cb)
+	ctx, err := malgo.InitContext(nil, malgo.ContextConfig{}, func(message string) {})
+
+	if err != nil {
+		return AudioCapture{}, errors.New(fmt.Sprintf("Failed to initialize context: %v", err))
+	}
+
+	device, numDevices, err := InitDevice(ctx, devIdx, bufferSize, sampleRate, cb)
 	if err != nil {
 		return AudioCapture{}, err
 	}
 
 	return AudioCapture{
+		Ctx:             ctx,
 		Dev:             device,
 		SampleRate:      float64(sampleRate),
 		FrameDurationMs: (float64(fft.BUFFER_SIZE) / sampleRate) * 1000,
@@ -32,15 +40,11 @@ func InitAudioCapture(devIdx int, bufferSize int, sampleRate float64, cb malgo.D
 	}, nil
 }
 
-func InitDevice(devIdx int, bufferSize int, sampleRate float64, cb malgo.DataProc) (*malgo.Device, int, error) {
-	ctx, devices, err := GetDevices()
+func InitDevice(ctx *malgo.AllocatedContext, devIdx int, bufferSize int, sampleRate float64, cb malgo.DataProc) (*malgo.Device, int, error) {
+	devices, err := GetDevices(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
-	defer func() {
-		_ = ctx.Uninit()
-		ctx.Free()
-	}()
 
 	if devIdx >= len(devices) {
 		return nil, 0, errors.New(
@@ -74,6 +78,7 @@ func (a *AudioCapture) ReinitDevice(devIdx int) error {
 	a.Dev.Uninit()
 
 	device, numDevices, err := InitDevice(
+		a.Ctx,
 		devIdx,
 		fft.BUFFER_SIZE,
 		a.SampleRate,
@@ -89,19 +94,13 @@ func (a *AudioCapture) StartDev() error {
 	return a.Dev.Start()
 }
 
-func GetDevices() (*malgo.AllocatedContext, []malgo.DeviceInfo, error) {
-	ctx, err := malgo.InitContext(nil, malgo.ContextConfig{}, func(message string) {})
-
-	if err != nil {
-		return nil, []malgo.DeviceInfo{}, errors.New(fmt.Sprintf("Failed to initialize context: %v", err))
-	}
-
+func GetDevices(ctx *malgo.AllocatedContext) ([]malgo.DeviceInfo, error) {
 	devices, err := ctx.Devices(malgo.Capture)
-	return ctx, devices, err
+	return devices, err
 }
 
-func PrintDevices() error {
-	_, devices, err := GetDevices()
+func (a *AudioCapture) PrintDevices() error {
+	devices, err := GetDevices(a.Ctx)
 	if err != nil {
 		return err
 	}
