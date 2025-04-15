@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Version=0.1
+Name=vbz
+Exec=vbz
+Terminal=true
+Categories=ConsoleOnly;
