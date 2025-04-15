@@ -40,7 +40,20 @@ func (l *LED) SetVibe(
 	h *hues.Hues,
 	PeakLowAmp float64,
 ) {
-	l.SetAllLEDsToColor(hues.HSVtoRGB(h.PrevFHues[0], 1, PeakLowAmp))
+	hI := 0
+	for i := 0; i < len(l.Countrollers); i++ {
+		c := l.Countrollers[i]
+
+		colors := make([]orgb.RGBColor, len(c.Colors))
+
+		for j := 0; j < len(colors); j++ {
+			r, g, b := hues.HSVtoRGB(h.PrevBHues[hI], 1, PeakLowAmp)
+			colors[j] = orgb.RGBColor{Red: r, Green: g, Blue: b}
+			hI = (hI + 2) % 64
+		}
+
+		l.Conn.UpdateLEDS(i, colors)
+	}
 }
 
 func (l *LED) TurtOffRGB() {
