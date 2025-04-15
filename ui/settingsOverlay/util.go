@@ -33,7 +33,7 @@ func (o *SettingsOverlay) initBDevices() {
 func (o *SettingsOverlay) shortenBDevicesNames(width int) {
 	for i := 0; i < o.d.Audio.NumDevices; i++ {
 		name := o.deviceNames[i]
-		castAsButton(o.comps[DeviceButtonsOffset+i]).Border.Text = name[:min(width, len(name)-1)]
+		castAsButton(o.comps[DeviceButtonsOffset+i]).Border.Text = name[:min(width, len(name))]
 	}
 }
 
