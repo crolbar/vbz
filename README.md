@@ -9,9 +9,6 @@
 
 ## Building
 
-### Dependencies
-- miniaudio
-
 ```
 go bulid
 ```
