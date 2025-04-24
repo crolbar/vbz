@@ -1,0 +1,50 @@
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23.6'
+
+      - name: build
+        run: go build
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: vbz
+          path: |
+            ./vbz
+
+  release:
+    needs: [ build ]
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Download
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+
+      - name: Archives
+        run: |
+          tar -czvf "vbz-linux.tar.gz" -C "artifacts" "vbz"
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            *.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
