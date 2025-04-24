@@ -5,6 +5,7 @@
 ## Features
 - Sync OpenRGB devices with audio frequency magnitude
 - Frequency graph visualizer
+- settings menu (acessed by the grave(`), f1 key
 
 ## Building
 
