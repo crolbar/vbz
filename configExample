@@ -1,0 +1,11 @@
+# default path in ~/.config/vbz/config
+
+Host=localhost
+Port=6742
+DeviceIdx=0
+FillBins=false
+HueRate=0.009
+AmpScalar=5000
+FilterRange=2
+FilterMode=DoubleBoxFilter
+Decay=80
