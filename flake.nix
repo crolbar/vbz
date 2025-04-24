@@ -5,10 +5,7 @@
     system = "x86_64-linux";
     pkgs = import inputs.nixpkgs {inherit system;};
 
-    deps = with pkgs; [
-      miniaudio
-      gcc
-    ];
+    deps = with pkgs; [miniaudio];
   in {
     devShells.${system}.default = pkgs.mkShell {
       packages = with pkgs;
