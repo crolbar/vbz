@@ -40,21 +40,23 @@ func initVBZ() (VBZ, error) {
 	vbz.fft.SetSettingsPtr(vbz.settings)
 
 	// cli arguments
-	err = vbz.settings.ParseEarlyArgs()
+	vbz.shouldNotEnterTui, err = vbz.settings.ParseEarlyArgs()
 	if err != nil {
 		return VBZ{}, err
 	}
+	if vbz.shouldNotEnterTui {
+		return vbz, nil
+	}
 
 	// openrgb connection
+	// we need this pointer because im passing it to the ui
+	// after i can just change the value behind it
+	vbz.led = &led.LED{}
 	if !vbz.settings.NoOpenRgb {
 		vbz.led, err = led.InitLED(vbz.settings.Host, vbz.settings.Port)
 		if err != nil {
 			return VBZ{}, errors.New(fmt.Sprintf("Error initializing openrgb connection: %s", err.Error()))
 		}
-	} else {
-		// we need this pointer because im passing it to the ui
-		// after i can just change the value behind it
-		vbz.led = &led.LED{}
 	}
 
 	// capture device for audio samples

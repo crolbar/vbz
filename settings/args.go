@@ -26,7 +26,7 @@ func parseConfigPathArg() (path string, err error) {
 	return
 }
 
-func (s *Settings) ParseEarlyArgs() error {
+func (s *Settings) ParseEarlyArgs() (bool, error) {
 	var (
 		funcType interface{}
 		ok       bool
@@ -44,8 +44,24 @@ func (s *Settings) ParseEarlyArgs() error {
 
 		switch arg {
 		case "--help", "-h":
-			panic("TODO HELP MENU")
-			// v.shouldNotEnterTui = true
+			fmt.Println(
+				"VBZ - OpenRGB Audio Visualizer Client" + "\n" +
+					"Usage: vbz [OPTION..]" + "\n" +
+					"\n" + "[OPTIONS]" + "\n" +
+					"-d, --device-idx    Device to capture (use -l to see devices)" + "\n" +
+					"-c, --config        Config file path" + "\n" +
+					"--host              OpenRGB server host" + "\n" +
+					"--port              OpenRGB server port" + "\n" +
+					"--no-leds           Don't update leds" + "\n" +
+					"--no-open-rgb       Don't try to connect to OpenRGB server" + "\n" +
+					"--fill-bins         Fills side black bars in the bins visualizer" + "\n" +
+					"--hue-rate          Hue change rate (speeds up color wave)" + "\n" +
+					"--amp-scalar        scale up the amplitude for better visualization" + "\n" +
+					"--filter-mode       Averaging filter type" + "\n" +
+					"--filter-range      Range of the averaging filter" + "\n" +
+					"--decay             Percentage of decay of amplitude in each frame",
+			)
+			return true, nil
 		}
 
 		if funcType, ok, key = getFuncType(arg); !ok {
@@ -74,9 +90,9 @@ func (s *Settings) ParseEarlyArgs() error {
 		}
 
 		if err != nil {
-			return err
+			return false, err
 		}
 	}
 
-	return nil
+	return false, nil
 }
