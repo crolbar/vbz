@@ -59,7 +59,13 @@ func (s *Settings) ParseEarlyArgs() (bool, error) {
 					"--amp-scalar        scale up the amplitude for better visualization" + "\n" +
 					"--filter-mode       Averaging filter type" + "\n" +
 					"--filter-range      Range of the averaging filter" + "\n" +
-					"--decay             Percentage of decay of amplitude in each frame",
+					"--decay             Percentage of decay of amplitude in each frame" + "\n" +
+					"\n" + "[LED OPTIONS]" + "\n" +
+					"--off                     Set openrgb leds to black" + "\n" +
+					"--red                     Set openrgb leds to red" + "\n" +
+					"--green                   Set openrgb leds to green" + "\n" +
+					"--blue                    Set openrgb leds to blue" + "\n" +
+					"--set-color [R] [G] [B]   Set leds to rgb color",
 			)
 			return true, nil
 		}
